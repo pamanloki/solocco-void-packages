@@ -27,7 +27,7 @@ NEW_CHECKSUM=$(sha256sum /tmp/iosevka-nf-new.tar.xz | cut -d' ' -f1)
 rm /tmp/iosevka-nf-new.tar.xz
 
 sed -i "s/^version=.*/version=$LATEST_VER/" "$TEMPLATE"
-sed -i "s/^checksum=.*/checksum=$NEW_CHECKSUM/" "$TEMPLATE"
+sed -i "s/^checksum=.*/checksum=\"$NEW_CHECKSUM\"/" "$TEMPLATE"
 
 echo "Template updated to version $LATEST_VER"
 echo "NEW_VERSION=$LATEST_VER" >> $GITHUB_ENV
