@@ -52,7 +52,7 @@ jobs:
     steps:
       - name: Check if this package should be built
         id: filter
-        shell: bash
+        shell: sh
         run: |
           PKG="${{ matrix.package }}"
           EVENT="${{ github.event_name }}"
