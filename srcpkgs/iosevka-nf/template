@@ -7,7 +7,7 @@ maintainer="solocco"
 license="OFL-1.1"
 homepage="https://github.com/solocco/iosevka-nf"
 distfiles="https://github.com/solocco/iosevka-nf/releases/download/v${version}/IosevkaNerd-TTF-${version}.tar.xz"
-checksum=418c67b4076601662799b6eb230c106d21c78f3962fbfc0bc4a84ea1b25570b6
+checksum="1f6f03ef25a4d8a7331fa93cf1ae040fafd83c7332701fabbfba6a2b8cf1255a"
 font_dirs="/usr/share/fonts/TTF"
 provides="font:monospace-0_1"
 
