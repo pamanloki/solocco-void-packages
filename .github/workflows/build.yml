@@ -16,9 +16,6 @@ on:
 permissions:
   contents: write
 
-# ──────────────────────────────────────────────
-# Reusable build job
-# ──────────────────────────────────────────────
 jobs:
   build:
     name: Build ${{ matrix.package }}
@@ -41,10 +38,6 @@ jobs:
           - package: iosevka-ori
             restricted: false
 
-    if: |
-      (github.event_name == 'workflow_dispatch' && (github.event.inputs.package == matrix.package || github.event.inputs.package == 'all')) ||
-      (github.event_name == 'push' && contains(github.event.head_commit.message, matrix.package))
-
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/void-linux/void-glibc-full
@@ -57,7 +50,32 @@ jobs:
         TEST: 0
 
     steps:
+      - name: Check if this package should be built
+        id: filter
+        shell: bash
+        run: |
+          PKG="${{ matrix.package }}"
+          EVENT="${{ github.event_name }}"
+          INPUT="${{ github.event.inputs.package }}"
+          MSG="${{ github.event.head_commit.message }}"
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            if [ "$INPUT" = "$PKG" ] || [ "$INPUT" = "all" ]; then
+              echo "run=true" >> $GITHUB_OUTPUT
+            else
+              echo "run=false" >> $GITHUB_OUTPUT
+            fi
+          elif [ "$EVENT" = "push" ]; then
+            if echo "$MSG" | grep -qF "$PKG"; then
+              echo "run=true" >> $GITHUB_OUTPUT
+            else
+              echo "run=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "run=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Prepare container
+        if: steps.filter.outputs.run == 'true'
         run: |
           mkdir -p /etc/xbps.d && cp /usr/share/xbps.d/*-repository-*.conf /etc/xbps.d/
           sed -i 's|repo-default|repo-ci|g' /etc/xbps.d/*-repository-*.conf
@@ -68,22 +86,26 @@ jobs:
           echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
 
       - name: Checkout repo
+        if: steps.filter.outputs.run == 'true'
         uses: actions/checkout@v4
         with:
           path: main-repo
 
       - name: Checkout void-packages
+        if: steps.filter.outputs.run == 'true'
         uses: actions/checkout@v4
         with:
           repository: void-linux/void-packages
           path: void-packages
 
       - name: Merge template
+        if: steps.filter.outputs.run == 'true'
         run: |
           cp -rv main-repo/srcpkgs/${{ matrix.package }} void-packages/srcpkgs/
           chown -R builder:builder void-packages
 
       - name: Prepare masterdir
+        if: steps.filter.outputs.run == 'true'
         run: |
           cd void-packages
           sudo -Eu builder common/travis/set_mirror.sh
@@ -91,20 +113,20 @@ jobs:
           common/travis/fetch-xtools.sh
 
       - name: Enable restricted packages
-        if: matrix.restricted == true
+        if: steps.filter.outputs.run == 'true' && matrix.restricted == true
         run: |
           mkdir -p void-packages/common/conf
           echo "XBPS_ALLOW_RESTRICTED=yes" | sudo tee -a void-packages/common/conf/make.conf
 
       - name: Build ${{ matrix.package }}
+        if: steps.filter.outputs.run == 'true'
         run: |
           export PATH="/opt/xbps/usr/bin/:$PATH"
           cd void-packages
           sudo -Eu builder ./xbps-src -j$(nproc) pkg ${{ matrix.package }}
 
-      # Upload built .xbps files as a workflow artifact so the publish
-      # job can collect them all after every build is done.
       - name: Upload build artifacts
+        if: steps.filter.outputs.run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: pkgs-${{ matrix.package }}
@@ -121,7 +143,6 @@ jobs:
   publish:
     name: Publish repo
     needs: build
-    # Run even if only some matrix legs ran (partial builds still publish).
     if: always() && needs.build.result != 'skipped'
     runs-on: ubuntu-latest
     container:
@@ -139,7 +160,6 @@ jobs:
           curl -fsSL https://github.com/cli/cli/releases/download/v2.67.0/gh_2.67.0_linux_amd64.tar.gz | tar -xz -C /tmp
           install -m755 /tmp/gh_2.67.0_linux_amd64/bin/gh /usr/local/bin/gh
 
-      # Collect every .xbps produced by all matrix legs into /tmp/new-pkgs
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
@@ -167,15 +187,11 @@ jobs:
       - name: Cleanup old versions
         run: |
           cd /tmp/repo
-          # Keep only the newest version of every package name.
-          # Works by sorting by modification time (newest first) and
-          # removing everything after the first file for each prefix.
           for pkg in zen-browser-bin google-chrome-bin helium-browser-bin \
                      mayulite-nerd-font brave-origin-beta iosevka-nf iosevka-ori; do
             ls -t ${pkg}-*.xbps      2>/dev/null | tail -n +2 | xargs -r rm -f
             ls -t ${pkg}-*.xbps.sig2 2>/dev/null | tail -n +2 | xargs -r rm -f
           done
-          # Remove any orphaned .sig2 files with no matching .xbps
           for sig in *.xbps.sig2; do
             [ -f "${sig%.sig2}" ] || rm -f "$sig"
           done
