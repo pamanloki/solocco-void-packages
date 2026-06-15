@@ -16,13 +16,35 @@ on:
 permissions:
   contents: write
 
+# ──────────────────────────────────────────────
+# Reusable build job
+# ──────────────────────────────────────────────
 jobs:
-  # ==================== ZEN BROWSER ====================
-  build-zen-browser-bin:
-    name: Build zen-browser-bin
+  build:
+    name: Build ${{ matrix.package }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: zen-browser-bin
+            restricted: false
+          - package: google-chrome-bin
+            restricted: true
+          - package: helium-browser-bin
+            restricted: false
+          - package: mayulite-nerd-font
+            restricted: false
+          - package: brave-origin-beta
+            restricted: true
+          - package: iosevka-nf
+            restricted: false
+          - package: iosevka-ori
+            restricted: false
+
     if: |
-      (github.event_name == 'workflow_dispatch' && (github.event.inputs.package == 'zen-browser-bin' || github.event.inputs.package == 'all')) ||
-      (github.event_name == 'push' && contains(github.event.head_commit.message, 'zen-browser-bin'))
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.package == matrix.package || github.event.inputs.package == 'all')) ||
+      (github.event_name == 'push' && contains(github.event.head_commit.message, matrix.package))
+
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/void-linux/void-glibc-full
@@ -33,13 +55,13 @@ jobs:
         ARCH: x86_64
         BOOTSTRAP: x86_64
         TEST: 0
+
     steps:
       - name: Prepare container
         run: |
           mkdir -p /etc/xbps.d && cp /usr/share/xbps.d/*-repository-*.conf /etc/xbps.d/
-          xbps-install -Syu xbps
           sed -i 's|repo-default|repo-ci|g' /etc/xbps.d/*-repository-*.conf
-          xbps-install -Syu && xbps-install -y sudo bash curl git
+          xbps-install -Syu xbps && xbps-install -yu && xbps-install -y sudo bash curl git
           curl -fsSL https://github.com/cli/cli/releases/download/v2.67.0/gh_2.67.0_linux_amd64.tar.gz | tar -xz -C /tmp
           install -m755 /tmp/gh_2.67.0_linux_amd64/bin/gh /usr/local/bin/gh
           useradd -G xbuilder -M builder
@@ -56,13 +78,10 @@ jobs:
           repository: void-linux/void-packages
           path: void-packages
 
-      - name: Merge templates
-        id: info
+      - name: Merge template
         run: |
-          cp -rv main-repo/srcpkgs/zen-browser-bin void-packages/srcpkgs/
+          cp -rv main-repo/srcpkgs/${{ matrix.package }} void-packages/srcpkgs/
           chown -R builder:builder void-packages
-          ZEN_VER=$(grep '^version=' main-repo/srcpkgs/zen-browser-bin/template | cut -d= -f2 | tr -d '"')
-          echo "zen_version=$ZEN_VER" >> $GITHUB_OUTPUT
 
       - name: Prepare masterdir
         run: |
@@ -71,129 +90,62 @@ jobs:
           sudo -Eu builder common/travis/prepare.sh
           common/travis/fetch-xtools.sh
 
-      - name: Build zen-browser-bin
+      - name: Enable restricted packages
+        if: matrix.restricted == true
+        run: |
+          mkdir -p void-packages/common/conf
+          echo "XBPS_ALLOW_RESTRICTED=yes" | sudo tee -a void-packages/common/conf/make.conf
+
+      - name: Build ${{ matrix.package }}
         run: |
           export PATH="/opt/xbps/usr/bin/:$PATH"
           cd void-packages
-          sudo -Eu builder ./xbps-src -j$(nproc) pkg zen-browser-bin
+          sudo -Eu builder ./xbps-src -j$(nproc) pkg ${{ matrix.package }}
 
-      - name: Download existing repo from release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p /tmp/repo
-          gh release download repo-latest \
-            --repo ${{ github.repository }} \
-            --dir /tmp/repo \
-            --pattern "*.xbps" \
-            --pattern "*.xbps.sig2" \
-            --pattern "x86_64-repodata" || echo "No existing release found, starting fresh"
+      # Upload built .xbps files as a workflow artifact so the publish
+      # job can collect them all after every build is done.
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pkgs-${{ matrix.package }}
+          path: |
+            void-packages/hostdir/binpkgs/**/*.xbps
+            void-packages/hostdir/binpkgs/**/*.xbps.sig2
+          if-no-files-found: error
+          retention-days: 1
 
-      - name: Merge new packages into repo
-        run: |
-          find void-packages/hostdir/binpkgs -name "*.xbps" -exec cp -f {} /tmp/repo/ \;
-          find void-packages/hostdir/binpkgs -name "*.xbps.sig2" -exec cp -f {} /tmp/repo/ \;
-
-      - name: Cleanup old versions
-        run: |
-          cd /tmp/repo
-          ls -t zen-browser-bin-*.xbps 2>/dev/null | tail -n +2 | xargs -r rm -f
-          ls -t zen-browser-bin-*.xbps.sig2 2>/dev/null | tail -n +2 | xargs -r rm -f
-          for sig in *.xbps.sig2; do
-            [ -f "${sig%.sig2}" ] || rm -f "$sig"
-          done
-
-      - name: Sign and Index
-        env:
-          PRIV_KEY: ${{ secrets.PRIV_KEY }}
-        run: |
-          export PATH="/opt/xbps/usr/bin/:$PATH"
-          cd /tmp/repo
-          rm -f x86_64-repodata
-          echo "$PRIV_KEY" > private.pem
-          xbps-rindex -a *.xbps
-          xbps-rindex -s --signedby "solocco" --privkey private.pem $PWD
-          xbps-rindex -S --privkey private.pem *.xbps
-          rm private.pem
-
-      - name: Upload to permanent release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create repo-latest \
-            --repo ${{ github.repository }} \
-            --title "solocco-void-packages" \
-            --notes "Permanent repository release. Files are updated automatically on each build." \
-            --latest 2>/dev/null || true
-          sleep 3
-          for f in /tmp/repo/*; do
-            gh release upload repo-latest \
-              --repo ${{ github.repository }} \
-              --clobber \
-              "$f" || true
-          done
-
-  # ==================== GOOGLE CHROME ====================
-  build-google-chrome-bin:
-    name: Build google-chrome-bin
-    if: |
-      (github.event_name == 'workflow_dispatch' && (github.event.inputs.package == 'google-chrome-bin' || github.event.inputs.package == 'all')) ||
-      (github.event_name == 'push' && contains(github.event.head_commit.message, 'google-chrome-bin'))
+  # ──────────────────────────────────────────────
+  # Single serialized publish job — runs AFTER all
+  # build jobs finish, so there is no race condition.
+  # ──────────────────────────────────────────────
+  publish:
+    name: Publish repo
+    needs: build
+    # Run even if only some matrix legs ran (partial builds still publish).
+    if: always() && needs.build.result != 'skipped'
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/void-linux/void-glibc-full
       options: --privileged
       volumes:
         - /dev:/dev
-      env:
-        ARCH: x86_64
-        BOOTSTRAP: x86_64
-        TEST: 0
+
     steps:
       - name: Prepare container
         run: |
           mkdir -p /etc/xbps.d && cp /usr/share/xbps.d/*-repository-*.conf /etc/xbps.d/
-          xbps-install -Syu xbps
           sed -i 's|repo-default|repo-ci|g' /etc/xbps.d/*-repository-*.conf
-          xbps-install -Syu && xbps-install -y sudo bash curl git
+          xbps-install -Syu xbps && xbps-install -yu && xbps-install -y curl
           curl -fsSL https://github.com/cli/cli/releases/download/v2.67.0/gh_2.67.0_linux_amd64.tar.gz | tar -xz -C /tmp
           install -m755 /tmp/gh_2.67.0_linux_amd64/bin/gh /usr/local/bin/gh
-          useradd -G xbuilder -M builder
-          echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
 
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      # Collect every .xbps produced by all matrix legs into /tmp/new-pkgs
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
         with:
-          path: main-repo
-
-      - name: Checkout void-packages
-        uses: actions/checkout@v4
-        with:
-          repository: void-linux/void-packages
-          path: void-packages
-
-      - name: Merge templates
-        id: info
-        run: |
-          cp -rv main-repo/srcpkgs/google-chrome-bin void-packages/srcpkgs/
-          chown -R builder:builder void-packages
-          CHR_VER=$(grep '^version=' main-repo/srcpkgs/google-chrome-bin/template | cut -d= -f2 | tr -d '"')
-          echo "chrome_version=$CHR_VER" >> $GITHUB_OUTPUT
-
-      - name: Prepare masterdir
-        run: |
-          cd void-packages
-          sudo -Eu builder common/travis/set_mirror.sh
-          sudo -Eu builder common/travis/prepare.sh
-          common/travis/fetch-xtools.sh
-
-      - name: Build google-chrome-bin
-        run: |
-          export PATH="/opt/xbps/usr/bin/:$PATH"
-          cd void-packages
-          mkdir -p common/conf
-          echo "XBPS_ALLOW_RESTRICTED=yes" | sudo tee -a common/conf/make.conf
-          sudo -Eu builder ./xbps-src -j$(nproc) pkg google-chrome-bin
+          pattern: pkgs-*
+          path: /tmp/new-pkgs
+          merge-multiple: true
 
       - name: Download existing repo from release
         env:
@@ -209,19 +161,26 @@ jobs:
 
       - name: Merge new packages into repo
         run: |
-          find void-packages/hostdir/binpkgs -name "*.xbps" -exec cp -f {} /tmp/repo/ \;
-          find void-packages/hostdir/binpkgs -name "*.xbps.sig2" -exec cp -f {} /tmp/repo/ \;
+          find /tmp/new-pkgs -name "*.xbps"      -exec cp -f {} /tmp/repo/ \;
+          find /tmp/new-pkgs -name "*.xbps.sig2" -exec cp -f {} /tmp/repo/ \;
 
       - name: Cleanup old versions
         run: |
           cd /tmp/repo
-          ls -t google-chrome-bin-*.xbps 2>/dev/null | tail -n +2 | xargs -r rm -f
-          ls -t google-chrome-bin-*.xbps.sig2 2>/dev/null | tail -n +2 | xargs -r rm -f
+          # Keep only the newest version of every package name.
+          # Works by sorting by modification time (newest first) and
+          # removing everything after the first file for each prefix.
+          for pkg in zen-browser-bin google-chrome-bin helium-browser-bin \
+                     mayulite-nerd-font brave-origin-beta iosevka-nf iosevka-ori; do
+            ls -t ${pkg}-*.xbps      2>/dev/null | tail -n +2 | xargs -r rm -f
+            ls -t ${pkg}-*.xbps.sig2 2>/dev/null | tail -n +2 | xargs -r rm -f
+          done
+          # Remove any orphaned .sig2 files with no matching .xbps
           for sig in *.xbps.sig2; do
             [ -f "${sig%.sig2}" ] || rm -f "$sig"
           done
 
-      - name: Sign and Index
+      - name: Sign and index
         env:
           PRIV_KEY: ${{ secrets.PRIV_KEY }}
         run: |
@@ -232,7 +191,7 @@ jobs:
           xbps-rindex -a *.xbps
           xbps-rindex -s --signedby "solocco" --privkey private.pem $PWD
           xbps-rindex -S --privkey private.pem *.xbps
-          rm private.pem
+          rm -f private.pem
 
       - name: Upload to permanent release
         env:
@@ -243,362 +202,9 @@ jobs:
             --title "solocco-void-packages" \
             --notes "Permanent repository release. Files are updated automatically on each build." \
             --latest 2>/dev/null || true
-          sleep 3
           for f in /tmp/repo/*; do
             gh release upload repo-latest \
               --repo ${{ github.repository }} \
               --clobber \
               "$f" || true
           done
-
-  # ==================== HELIUM BROWSER ====================
-  build-helium-browser-bin:
-    name: Build helium-browser-bin
-    if: |
-      (github.event_name == 'workflow_dispatch' && (github.event.inputs.package == 'helium-browser-bin' || github.event.inputs.package == 'all')) ||
-      (github.event_name == 'push' && contains(github.event.head_commit.message, 'helium-browser-bin'))
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/void-linux/void-glibc-full
-      options: --privileged
-      volumes:
-        - /dev:/dev
-      env:
-        ARCH: x86_64
-        BOOTSTRAP: x86_64
-        TEST: 0
-    steps:
-      - name: Prepare container
-        run: |
-          mkdir -p /etc/xbps.d && cp /usr/share/xbps.d/*-repository-*.conf /etc/xbps.d/
-          xbps-install -Syu xbps
-          sed -i 's|repo-default|repo-ci|g' /etc/xbps.d/*-repository-*.conf
-          xbps-install -Syu && xbps-install -y sudo bash curl git
-          curl -fsSL https://github.com/cli/cli/releases/download/v2.67.0/gh_2.67.0_linux_amd64.tar.gz | tar -xz -C /tmp
-          install -m755 /tmp/gh_2.67.0_linux_amd64/bin/gh /usr/local/bin/gh
-          useradd -G xbuilder -M builder
-          echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
-
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        with:
-          path: main-repo
-
-      - name: Checkout void-packages
-        uses: actions/checkout@v4
-        with:
-          repository: void-linux/void-packages
-          path: void-packages
-
-      - name: Merge templates
-        id: info
-        run: |
-          cp -rv main-repo/srcpkgs/helium-browser-bin void-packages/srcpkgs/
-          chown -R builder:builder void-packages
-          HEL_VER=$(grep '^version=' main-repo/srcpkgs/helium-browser-bin/template | cut -d= -f2 | tr -d '"')
-          echo "helium_version=$HEL_VER" >> $GITHUB_OUTPUT
-
-      - name: Prepare masterdir
-        run: |
-          cd void-packages
-          sudo -Eu builder common/travis/set_mirror.sh
-          sudo -Eu builder common/travis/prepare.sh
-          common/travis/fetch-xtools.sh
-
-      - name: Build helium-browser-bin
-        run: |
-          export PATH="/opt/xbps/usr/bin/:$PATH"
-          cd void-packages
-          sudo -Eu builder ./xbps-src -j$(nproc) pkg helium-browser-bin
-
-      - name: Download existing repo from release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p /tmp/repo
-          gh release download repo-latest \
-            --repo ${{ github.repository }} \
-            --dir /tmp/repo \
-            --pattern "*.xbps" \
-            --pattern "*.xbps.sig2" \
-            --pattern "x86_64-repodata" || echo "No existing release found, starting fresh"
-
-      - name: Merge new packages into repo
-        run: |
-          find void-packages/hostdir/binpkgs -name "*.xbps" -exec cp -f {} /tmp/repo/ \;
-          find void-packages/hostdir/binpkgs -name "*.xbps.sig2" -exec cp -f {} /tmp/repo/ \;
-
-      - name: Cleanup old versions
-        run: |
-          cd /tmp/repo
-          ls -t helium-browser-bin-*.xbps 2>/dev/null | tail -n +2 | xargs -r rm -f
-          ls -t helium-browser-bin-*.xbps.sig2 2>/dev/null | tail -n +2 | xargs -r rm -f
-          for sig in *.xbps.sig2; do
-            [ -f "${sig%.sig2}" ] || rm -f "$sig"
-          done
-
-      - name: Sign and Index
-        env:
-          PRIV_KEY: ${{ secrets.PRIV_KEY }}
-        run: |
-          export PATH="/opt/xbps/usr/bin/:$PATH"
-          cd /tmp/repo
-          rm -f x86_64-repodata
-          echo "$PRIV_KEY" > private.pem
-          xbps-rindex -a *.xbps
-          xbps-rindex -s --signedby "solocco" --privkey private.pem $PWD
-          xbps-rindex -S --privkey private.pem *.xbps
-          rm private.pem
-
-      - name: Upload to permanent release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create repo-latest \
-            --repo ${{ github.repository }} \
-            --title "solocco-void-packages" \
-            --notes "Permanent repository release. Files are updated automatically on each build." \
-            --latest 2>/dev/null || true
-          sleep 3
-          for f in /tmp/repo/*; do
-            gh release upload repo-latest \
-              --repo ${{ github.repository }} \
-              --clobber \
-              "$f" || true
-          done
-
-  # ==================== MAYULITE NERD FONT ====================
-  build-mayulite-nerd-font:
-    name: Build mayulite-nerd-font
-    if: |
-      (github.event_name == 'workflow_dispatch' && (github.event.inputs.package == 'mayulite-nerd-font' || github.event.inputs.package == 'all')) ||
-      (github.event_name == 'push' && contains(github.event.head_commit.message, 'mayulite-nerd-font'))
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/void-linux/void-glibc-full
-      options: --privileged
-      volumes:
-        - /dev:/dev
-      env:
-        ARCH: x86_64
-        BOOTSTRAP: x86_64
-        TEST: 0
-    steps:
-      - name: Prepare container
-        run: |
-          mkdir -p /etc/xbps.d && cp /usr/share/xbps.d/*-repository-*.conf /etc/xbps.d/
-          xbps-install -Syu xbps
-          sed -i 's|repo-default|repo-ci|g' /etc/xbps.d/*-repository-*.conf
-          xbps-install -Syu && xbps-install -y sudo bash curl git
-          curl -fsSL https://github.com/cli/cli/releases/download/v2.67.0/gh_2.67.0_linux_amd64.tar.gz | tar -xz -C /tmp
-          install -m755 /tmp/gh_2.67.0_linux_amd64/bin/gh /usr/local/bin/gh
-          useradd -G xbuilder -M builder
-          echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
-
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        with:
-          path: main-repo
-
-      - name: Checkout void-packages
-        uses: actions/checkout@v4
-        with:
-          repository: void-linux/void-packages
-          path: void-packages
-
-      - name: Merge templates
-        id: info
-        run: |
-          cp -rv main-repo/srcpkgs/mayulite-nerd-font void-packages/srcpkgs/
-          chown -R builder:builder void-packages
-          FONT_VER=$(grep '^version=' main-repo/srcpkgs/mayulite-nerd-font/template | cut -d= -f2 | tr -d '"')
-          echo "font_version=$FONT_VER" >> $GITHUB_OUTPUT
-
-      - name: Prepare masterdir
-        run: |
-          cd void-packages
-          sudo -Eu builder common/travis/set_mirror.sh
-          sudo -Eu builder common/travis/prepare.sh
-          common/travis/fetch-xtools.sh
-
-      - name: Build mayulite-nerd-font
-        run: |
-          export PATH="/opt/xbps/usr/bin/:$PATH"
-          cd void-packages
-          sudo -Eu builder ./xbps-src -j$(nproc) pkg mayulite-nerd-font
-
-      - name: Download existing repo from release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p /tmp/repo
-          gh release download repo-latest \
-            --repo ${{ github.repository }} \
-            --dir /tmp/repo \
-            --pattern "*.xbps" \
-            --pattern "*.xbps.sig2" \
-            --pattern "x86_64-repodata" || echo "No existing release found, starting fresh"
-
-      - name: Merge new packages into repo
-        run: |
-          find void-packages/hostdir/binpkgs -name "*.xbps" -exec cp -f {} /tmp/repo/ \;
-          find void-packages/hostdir/binpkgs -name "*.xbps.sig2" -exec cp -f {} /tmp/repo/ \;
-
-      - name: Cleanup old versions
-        run: |
-          cd /tmp/repo
-          ls -t mayulite-nerd-font-*.xbps 2>/dev/null | tail -n +2 | xargs -r rm -f
-          ls -t mayulite-nerd-font-*.xbps.sig2 2>/dev/null | tail -n +2 | xargs -r rm -f
-          for sig in *.xbps.sig2; do
-            [ -f "${sig%.sig2}" ] || rm -f "$sig"
-          done
-
-      - name: Sign and Index
-        env:
-          PRIV_KEY: ${{ secrets.PRIV_KEY }}
-        run: |
-          export PATH="/opt/xbps/usr/bin/:$PATH"
-          cd /tmp/repo
-          rm -f x86_64-repodata
-          echo "$PRIV_KEY" > private.pem
-          xbps-rindex -a *.xbps
-          xbps-rindex -s --signedby "solocco" --privkey private.pem $PWD
-          xbps-rindex -S --privkey private.pem *.xbps
-          rm private.pem
-
-      - name: Upload to permanent release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create repo-latest \
-            --repo ${{ github.repository }} \
-            --title "solocco-void-packages" \
-            --notes "Permanent repository release. Files are updated automatically on each build." \
-            --latest 2>/dev/null || true
-          sleep 3
-          for f in /tmp/repo/*; do
-            gh release upload repo-latest \
-              --repo ${{ github.repository }} \
-              --clobber \
-              "$f" || true
-          done
-
-  # ==================== BRAVE ORIGIN BETA ====================
-  build-brave-origin-beta:
-    name: Build brave-origin-beta
-    if: |
-      (github.event_name == 'workflow_dispatch' && (github.event.inputs.package == 'brave-origin-beta' || github.event.inputs.package == 'all')) ||
-      (github.event_name == 'push' && contains(github.event.head_commit.message, 'brave-origin-beta'))
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/void-linux/void-glibc-full
-      options: --privileged
-      volumes:
-        - /dev:/dev
-      env:
-        ARCH: x86_64
-        BOOTSTRAP: x86_64
-        TEST: 0
-    steps:
-      - name: Prepare container
-        run: |
-          mkdir -p /etc/xbps.d && cp /usr/share/xbps.d/*-repository-*.conf /etc/xbps.d/
-          xbps-install -Syu xbps
-          sed -i 's|repo-default|repo-ci|g' /etc/xbps.d/*-repository-*.conf
-          xbps-install -Syu && xbps-install -y sudo bash curl git rpmextract
-          curl -fsSL https://github.com/cli/cli/releases/download/v2.67.0/gh_2.67.0_linux_amd64.tar.gz | tar -xz -C /tmp
-          install -m755 /tmp/gh_2.67.0_linux_amd64/bin/gh /usr/local/bin/gh
-          useradd -G xbuilder -M builder
-          echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
-
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        with:
-          path: main-repo
-
-      - name: Checkout void-packages
-        uses: actions/checkout@v4
-        with:
-          repository: void-linux/void-packages
-          path: void-packages
-
-      - name: Merge templates
-        id: info
-        run: |
-          cp -rv main-repo/srcpkgs/brave-origin-beta void-packages/srcpkgs/
-          chown -R builder:builder void-packages
-          BRAVE_VER=$(grep '^version=' main-repo/srcpkgs/brave-origin-beta/template | cut -d= -f2 | tr -d '"')
-          echo "brave_version=$BRAVE_VER" >> $GITHUB_OUTPUT
-
-      - name: Prepare masterdir
-        run: |
-          cd void-packages
-          sudo -Eu builder common/travis/set_mirror.sh
-          sudo -Eu builder common/travis/prepare.sh
-          common/travis/fetch-xtools.sh
-
-      - name: Build brave-origin-beta
-        run: |
-          export PATH="/opt/xbps/usr/bin/:$PATH"
-          cd void-packages
-          mkdir -p common/conf
-          echo "XBPS_ALLOW_RESTRICTED=yes" | sudo tee -a common/conf/make.conf
-          sudo -Eu builder ./xbps-src -j$(nproc) pkg brave-origin-beta
-
-      - name: Download existing repo from release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p /tmp/repo
-          gh release download repo-latest \
-            --repo ${{ github.repository }} \
-            --dir /tmp/repo \
-            --pattern "*.xbps" \
-            --pattern "*.xbps.sig2" \
-            --pattern "x86_64-repodata" || echo "No existing release found, starting fresh"
-
-      - name: Merge new packages into repo
-        run: |
-          find void-packages/hostdir/binpkgs -name "*.xbps" -exec cp -f {} /tmp/repo/ \;
-          find void-packages/hostdir/binpkgs -name "*.xbps.sig2" -exec cp -f {} /tmp/repo/ \;
-
-      - name: Cleanup old versions
-        run: |
-          cd /tmp/repo
-          ls -t brave-origin-beta-*.xbps 2>/dev/null | tail -n +2 | xargs -r rm -f
-          ls -t brave-origin-beta-*.xbps.sig2 2>/dev/null | tail -n +2 | xargs -r rm -f
-          for sig in *.xbps.sig2; do
-            [ -f "${sig%.sig2}" ] || rm -f "$sig"
-          done
-
-      - name: Sign and Index
-        env:
-          PRIV_KEY: ${{ secrets.PRIV_KEY }}
-        run: |
-          export PATH="/opt/xbps/usr/bin/:$PATH"
-          cd /tmp/repo
-          rm -f x86_64-repodata
-          echo "$PRIV_KEY" > private.pem
-          xbps-rindex -a *.xbps
-          xbps-rindex -s --signedby "solocco" --privkey private.pem $PWD
-          xbps-rindex -S --privkey private.pem *.xbps
-          rm private.pem
-
-      - name: Upload to permanent release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create repo-latest \
-            --repo ${{ github.repository }} \
-            --title "solocco-void-packages" \
-            --notes "Permanent repository release. Files are updated automatically on each build." \
-            --latest 2>/dev/null || true
-          sleep 3
-          for f in /tmp/repo/*; do
-            gh release upload repo-latest \
-              --repo ${{ github.repository }} \
-              --clobber \
-              "$f" || true
-          done
-
-  # ==================== IOSEVKA NF
