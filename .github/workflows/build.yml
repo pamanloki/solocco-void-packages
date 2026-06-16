@@ -33,9 +33,7 @@ jobs:
             restricted: false
           - package: brave-origin-beta
             restricted: true
-          - package: iosevka-nf
-            restricted: false
-          - package: iosevka-ori
+          - package: iosevkaku-bin
             restricted: false
 
     runs-on: ubuntu-latest
@@ -188,7 +186,7 @@ jobs:
         run: |
           cd /tmp/repo
           for pkg in zen-browser-bin google-chrome-bin helium-browser-bin \
-                     mayulite-nerd-font brave-origin-beta iosevka-nf iosevka-ori; do
+                     mayulite-nerd-font brave-origin-beta iosevkaku-bin; do
             ls -t ${pkg}-*.xbps      2>/dev/null | tail -n +2 | xargs -r rm -f
             ls -t ${pkg}-*.xbps.sig2 2>/dev/null | tail -n +2 | xargs -r rm -f
           done

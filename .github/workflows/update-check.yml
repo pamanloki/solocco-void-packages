@@ -1,17 +1,17 @@
 name: Update Check
 on:
   workflow_dispatch:
-  schedule:
-  # Setiap Senin dan Kamis jam 07:00 WIB (00:00 UTC)
-  - cron: '0 0 * * 1,4'
+    schedule:
+      # Setiap Senin dan Kamis jam 07:00 WIB (00:00 UTC)
+      - cron: '0 0 * * 1,4'
 
-permissions:
-  contents: write
+    permissions:
+      contents: write
 
-jobs:
-  # ==================== ZEN BROWSER ====================
-  update-zen-browser-bin:
-    name: Check zen-browser-bin updates
+    jobs:
+      # ==================== ZEN BROWSER ====================
+      update-zen-browser-bin:
+        name: Check zen-browser-bin updates
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -42,14 +42,14 @@ jobs:
           add: 'srcpkgs/zen-browser-bin/template'
           github_token: ${{ secrets.PAT_TOKEN }}
 
-  # ==================== GOOGLE CHROME ====================
-  update-google-chrome-bin:
-    name: Check google-chrome-bin updates
-    needs: update-zen-browser-bin
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
+          # ==================== GOOGLE CHROME ====================
+        update-google-chrome-bin:
+          name: Check google-chrome-bin updates
+        needs: update-zen-browser-bin
+        if: always()
+        runs-on: ubuntu-latest
+        steps:
+          - name: Checkout
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT_TOKEN }}
@@ -77,14 +77,14 @@ jobs:
           add: 'srcpkgs/google-chrome-bin/template'
           github_token: ${{ secrets.PAT_TOKEN }}
 
-  # ==================== HELIUM BROWSER ====================
-  update-helium-browser-bin:
-    name: Check helium-browser-bin updates
-    needs: update-google-chrome-bin
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
+          # ==================== HELIUM BROWSER ====================
+        update-helium-browser-bin:
+          name: Check helium-browser-bin updates
+        needs: update-google-chrome-bin
+        if: always()
+        runs-on: ubuntu-latest
+        steps:
+          - name: Checkout
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT_TOKEN }}
@@ -112,14 +112,14 @@ jobs:
           add: 'srcpkgs/helium-browser-bin/template'
           github_token: ${{ secrets.PAT_TOKEN }}
 
-  # ==================== MAYULITE NERD FONT ====================
-  update-mayulite-nerd-font:
-    name: Check mayulite-nerd-font updates
-    needs: update-helium-browser-bin
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
+          # ==================== MAYULITE NERD FONT ====================
+        update-mayulite-nerd-font:
+          name: Check mayulite-nerd-font updates
+        needs: update-helium-browser-bin
+        if: always()
+        runs-on: ubuntu-latest
+        steps:
+          - name: Checkout
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT_TOKEN }}
@@ -147,14 +147,14 @@ jobs:
           add: 'srcpkgs/mayulite-nerd-font/template'
           github_token: ${{ secrets.PAT_TOKEN }}
 
-  # ==================== BRAVE ORIGIN BETA ====================
-  update-brave-origin-beta:
-    name: Check brave-origin-beta updates
-    needs: update-mayulite-nerd-font
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
+          # ==================== BRAVE ORIGIN BETA ====================
+        update-brave-origin-beta:
+          name: Check brave-origin-beta updates
+        needs: update-mayulite-nerd-font
+        if: always()
+        runs-on: ubuntu-latest
+        steps:
+          - name: Checkout
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT_TOKEN }}
@@ -182,14 +182,14 @@ jobs:
           add: 'srcpkgs/brave-origin-beta/template'
           github_token: ${{ secrets.PAT_TOKEN }}
 
-  # ==================== IOSEVKA NF ====================
-  update-iosevka-nf:
-    name: Check iosevka-nf updates
-    needs: update-brave-origin-beta
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
+          # ==================== IOSEVKAKU ====================
+        update-iosevkaku-bin:
+          name: Check iosevkaku-bin updates
+        needs: update-brave-origin-beta   # atau job sebelumnya
+        if: always()
+        runs-on: ubuntu-latest
+        steps:
+          - name: Checkout
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT_TOKEN }}
@@ -199,8 +199,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          chmod +x scripts/update-iosevka-nf.sh
-          ./scripts/update-iosevka-nf.sh
+          chmod +x scripts/update-iosevkaku-bin.sh
+          ./scripts/update-iosevkaku-bin.sh
 
       - name: Pull latest changes
         if: env.NEW_VERSION != ''
@@ -213,42 +213,7 @@ jobs:
         if: env.NEW_VERSION != ''
         uses: EndBug/add-and-commit@v9
         with:
-          message: "Update iosevka-nf to ${{ env.NEW_VERSION }}"
-          add: 'srcpkgs/iosevka-nf/template'
-          github_token: ${{ secrets.PAT_TOKEN }}
-
-  # ==================== IOSEVKA ORI ====================
-  update-iosevka-ori:
-    name: Check iosevka-ori updates
-    needs: update-iosevka-nf
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.PAT_TOKEN }}
-
-      - name: Run update script
-        id: update
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          chmod +x scripts/update-iosevka-ori.sh
-          ./scripts/update-iosevka-ori.sh
-
-      - name: Pull latest changes
-        if: env.NEW_VERSION != ''
-        run: |
-          git stash
-          git pull --rebase origin main
-          git stash pop
-
-      - name: Commit and push
-        if: env.NEW_VERSION != ''
-        uses: EndBug/add-and-commit@v9
-        with:
-          message: "Update iosevka-ori to ${{ env.NEW_VERSION }}"
-          add: 'srcpkgs/iosevka-ori/template'
+          message: "Update iosevkaku-bin to ${{ env.NEW_VERSION }}"
+          add: 'srcpkgs/iosevkaku-bin/template'
           github_token: ${{ secrets.PAT_TOKEN }}
 
