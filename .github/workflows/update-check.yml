@@ -216,3 +216,38 @@ jobs:
           message: "Update iosevkaku-bin to ${{ env.NEW_VERSION }}"
           add: 'srcpkgs/iosevkaku-bin/template'
           github_token: ${{ secrets.PAT_TOKEN }}
+
+  # ==================== IOSKELEY ====================
+  update-ioskeley-bin:
+    name: Check ioskeley-bin updates
+    needs: update-iosevkaku-bin
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Run update script
+        id: update
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          chmod +x scripts/update-ioskeley-bin.sh
+          ./scripts/update-ioskeley-bin.sh
+
+      - name: Pull latest changes
+        if: env.NEW_VERSION != ''
+        run: |
+          git stash
+          git pull --rebase origin main
+          git stash pop
+
+      - name: Commit and push
+        if: env.NEW_VERSION != ''
+        uses: EndBug/add-and-commit@v9
+        with:
+          message: "Update ioskeley-bin to ${{ env.NEW_VERSION }}"
+          add: 'srcpkgs/ioskeley-bin/template'
+          github_token: ${{ secrets.PAT_TOKEN }}
