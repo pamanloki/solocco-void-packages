@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: 'Package to build (zen-browser-bin / google-chrome-bin / helium-browser-bin / mayulite-nerd-font / brave-origin-beta / iosevkaku-bin / ioskeley-bin / all)'
+        description: 'Package to build (zen-browser-bin / google-chrome-bin / helium-browser-bin / mayulite-nerd-font / brave-origin-beta / iosevkaku-bin / cidmono-bin / all)'
         required: false
         default: 'all'
         type: string
@@ -29,13 +29,11 @@ jobs:
             restricted: true
           - package: helium-browser-bin
             restricted: false
-          - package: mayulite-nerd-font
-            restricted: false
           - package: brave-origin-beta
             restricted: true
           - package: iosevkaku-bin
             restricted: false
-          - package: ioskeley-bin
+          - package: cidmono-bin
             restricted: false
 
     runs-on: ubuntu-latest
@@ -188,7 +186,7 @@ jobs:
         run: |
           cd /tmp/repo
           for pkg in zen-browser-bin google-chrome-bin helium-browser-bin \
-                     mayulite-nerd-font brave-origin-beta iosevkaku-bin ioskeley-bin; do
+                     brave-origin-beta iosevkaku-bin cidmono-bin; do
             ls -t ${pkg}-*.xbps      2>/dev/null | tail -n +2 | xargs -r rm -f
             ls -t ${pkg}-*.xbps.sig2 2>/dev/null | tail -n +2 | xargs -r rm -f
           done
