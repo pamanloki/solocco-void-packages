@@ -174,24 +174,18 @@ jobs:
             --repo ${{ github.repository }} \
             --dir /tmp/repo \
             --pattern "*.xbps" \
-            --pattern "*.xbps.sig2" \
             --pattern "x86_64-repodata" || echo "No existing release found, starting fresh"
 
       - name: Merge new packages into repo
         run: |
-          find /tmp/new-pkgs -name "*.xbps"      -exec cp -f {} /tmp/repo/ \;
-          find /tmp/new-pkgs -name "*.xbps.sig2" -exec cp -f {} /tmp/repo/ \;
+          find /tmp/new-pkgs -name "*.xbps" -exec cp -f {} /tmp/repo/ \;
 
       - name: Cleanup old versions
         run: |
           cd /tmp/repo
           for pkg in zen-browser-bin google-chrome-bin helium-browser-bin \
-                     brave-origin-beta iosevkaku-bin cidmono-bin; do
-            ls -t ${pkg}-*.xbps      2>/dev/null | tail -n +2 | xargs -r rm -f
-            ls -t ${pkg}-*.xbps.sig2 2>/dev/null | tail -n +2 | xargs -r rm -f
-          done
-          for sig in *.xbps.sig2; do
-            [ -f "${sig%.sig2}" ] || rm -f "$sig"
+                     mayulite-nerd-font brave-origin-beta iosevkaku-bin cidmono-bin; do
+            ls -t ${pkg}-*.xbps 2>/dev/null | tail -n +2 | xargs -r rm -f
           done
 
       - name: Sign and index
@@ -200,7 +194,7 @@ jobs:
         run: |
           export PATH="/opt/xbps/usr/bin/:$PATH"
           cd /tmp/repo
-          rm -f x86_64-repodata
+          rm -f x86_64-repodata *.xbps.sig2
           echo "$PRIV_KEY" > private.pem
           xbps-rindex -a *.xbps
           xbps-rindex -s --signedby "solocco" --privkey private.pem $PWD
