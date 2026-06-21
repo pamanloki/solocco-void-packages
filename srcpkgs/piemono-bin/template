@@ -8,8 +8,8 @@ license="OFL-1.1"
 homepage="https://github.com/solocco/PieMono"
 distfiles="https://github.com/solocco/PieMono/releases/download/v${version}/PieMono-TTF.tar.xz
  https://github.com/solocco/PieMono/releases/download/v${version}/PieMono-NerdFont.tar.xz"
-checksum="2a3d98253e73429ed9a5fc2646b9233b959efa4f6f99c910a25deda8a9d3502c
- 8c9d09260caf13a524e8016184d7f2915292fb5cc937a4839495a3748381245e"
+checksum="6a04d1764edbcd8841ce59006733a02aeeacae8628cdec4bda65ce3dfaffa963
+ ed7ea0c93bf3f55bc5768bcd51345233edab1e2b8924d7f05ac0e9b6c6c390f3"
 font_dirs="/usr/share/fonts/TTF"
 provides="font:monospace-0_1"
 
