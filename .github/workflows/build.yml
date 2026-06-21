@@ -33,7 +33,7 @@ jobs:
             restricted: true
           - package: iosevkaku-bin
             restricted: false
-          - package: cidmono-bin
+          - package: piemono-bin
             restricted: false
 
     runs-on: ubuntu-latest
@@ -184,7 +184,7 @@ jobs:
         run: |
           cd /tmp/repo
           for pkg in zen-browser-bin google-chrome-bin helium-browser-bin \
-                     mayulite-nerd-font brave-origin-beta iosevkaku-bin cidmono-bin; do
+                     brave-origin-beta iosevkaku-bin piemono-bin; do
             ls -t ${pkg}-*.xbps 2>/dev/null | tail -n +2 | xargs -r rm -f
           done
 

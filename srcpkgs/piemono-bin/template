@@ -1,0 +1,19 @@
+pkgname=piemono-bin
+version=34.6.3
+revision=1
+depends="font-util"
+short_desc="PieMono TTF and Nerd Font"
+maintainer="solocco"
+license="OFL-1.1"
+homepage="https://github.com/solocco/PieMono"
+distfiles="https://github.com/solocco/PieMono/releases/download/v${version}/PieMono-TTF.tar.xz
+ https://github.com/solocco/PieMono/releases/download/v${version}/PieMono-NerdFont.tar.xz"
+checksum="2a3d98253e73429ed9a5fc2646b9233b959efa4f6f99c910a25deda8a9d3502c
+ 8c9d09260caf13a524e8016184d7f2915292fb5cc937a4839495a3748381245e"
+font_dirs="/usr/share/fonts/TTF"
+provides="font:monospace-0_1"
+
+do_install() {
+    vmkdir usr/share/fonts/TTF
+    vcopy *.ttf usr/share/fonts/TTF
+}
