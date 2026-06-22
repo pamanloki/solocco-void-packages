@@ -1,6 +1,6 @@
 pkgname=piemono-bin
 version=34.6.3
-revision=1
+revision=2
 depends="font-util"
 short_desc="PieMono TTF and Nerd Font"
 maintainer="solocco"
