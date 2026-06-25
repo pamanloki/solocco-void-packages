@@ -112,9 +112,9 @@ jobs:
           add: 'srcpkgs/helium-browser-bin/template'
           github_token: ${{ secrets.PAT_TOKEN }}
 
-  # ==================== MAYULITE NERD FONT ====================
-  update-mayulite-nerd-font:
-    name: Check mayulite-nerd-font updates
+  # ==================== MAYULITE ====================
+  update-mayulite-bin:
+    name: Check mayulite-bin updates
     needs: update-helium-browser-bin
     if: always()
     runs-on: ubuntu-latest
@@ -129,8 +129,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          chmod +x scripts/update-mayulite-nerd-font.sh
-          ./scripts/update-mayulite-nerd-font.sh
+          chmod +x scripts/update-mayulite-bin.sh
+          ./scripts/update-mayulite-bin.sh
 
       - name: Pull latest changes
         if: env.NEW_VERSION != ''
@@ -143,14 +143,14 @@ jobs:
         if: env.NEW_VERSION != ''
         uses: EndBug/add-and-commit@v9
         with:
-          message: "Update mayulite-nerd-font to ${{ env.NEW_VERSION }}"
-          add: 'srcpkgs/mayulite-nerd-font/template'
+          message: "Update mayulite-bin to ${{ env.NEW_VERSION }}"
+          add: 'srcpkgs/mayulite-bin/template'
           github_token: ${{ secrets.PAT_TOKEN }}
 
   # ==================== BRAVE ORIGIN BETA ====================
   update-brave-origin-beta:
     name: Check brave-origin-beta updates
-    needs: update-mayulite-nerd-font
+    needs: update-mayulite-bin
     if: always()
     runs-on: ubuntu-latest
     steps:

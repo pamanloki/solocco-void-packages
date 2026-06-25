@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: 'Package to build (zen-browser-bin / google-chrome-bin / helium-browser-bin / mayulite-nerd-font / brave-origin-beta / iosevkaku-bin / piemono-bin / all)'
+        description: 'Package to build (zen-browser-bin / google-chrome-bin / helium-browser-bin / mayulite-bin / brave-origin-beta / iosevkaku-bin / ioskeley-bin / cidmono-bin / piemono-bin / all)'
         required: false
         default: 'all'
         type: string
@@ -29,13 +29,13 @@ jobs:
             restricted: true
           - package: helium-browser-bin
             restricted: false
+          - package: mayulite-bin
+            restricted: false
           - package: brave-origin-beta
             restricted: true
           - package: iosevkaku-bin
             restricted: false
-          - package: piemono-bin
-            restricted: false
-
+                             
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/void-linux/void-glibc-full
@@ -193,8 +193,8 @@ jobs:
         run: |
           cd /tmp/repo
           for pkg in zen-browser-bin google-chrome-bin helium-browser-bin \
-                     brave-origin-beta iosevkaku-bin piemono-bin; do
-            # keep only the newest version of each package
+                     mayulite-bin brave-origin-beta iosevkaku-bin \
+                     ioskeley-bin cidmono-bin piemono-bin; do
             ls -t ${pkg}-*.xbps 2>/dev/null | tail -n +2 | xargs -r rm -f
           done
 
@@ -229,7 +229,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           for pkg in zen-browser-bin google-chrome-bin helium-browser-bin \
-                     brave-origin-beta iosevkaku-bin piemono-bin; do
+                     mayulite-bin brave-origin-beta iosevkaku-bin; do
             gh release view repo-latest \
               --repo ${{ github.repository }} \
               --json assets \
