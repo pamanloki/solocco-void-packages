@@ -27,29 +27,26 @@ echo "Update: $CURRENT_VER -> $LATEST_VER"
 
 BASE="https://github.com/$REPO/releases/download/v${LATEST_VER}"
 
-wget -q "$BASE/Iosevka-TTF-${LATEST_VER}.tar.xz"        -O /tmp/ttf.tar.xz
-wget -q "$BASE/IosevkaNerd-TTF-${LATEST_VER}.tar.xz"    -O /tmp/nerd.tar.xz
-wget -q "$BASE/IosevkaNerdPropo-TTF-${LATEST_VER}.tar.xz" -O /tmp/propo.tar.xz
+wget -q "$BASE/Iosevka-TTF-${LATEST_VER}.tar.xz"     -O /tmp/ttf.tar.xz
+wget -q "$BASE/IosevkaNerd-TTF-${LATEST_VER}.tar.xz" -O /tmp/nerd.tar.xz
 
-CS1=$(sha256sum /tmp/ttf.tar.xz   | cut -d' ' -f1)
-CS2=$(sha256sum /tmp/nerd.tar.xz  | cut -d' ' -f1)
-CS3=$(sha256sum /tmp/propo.tar.xz | cut -d' ' -f1)
+CS1=$(sha256sum /tmp/ttf.tar.xz  | cut -d' ' -f1)
+CS2=$(sha256sum /tmp/nerd.tar.xz | cut -d' ' -f1)
 
-rm /tmp/ttf.tar.xz /tmp/nerd.tar.xz /tmp/propo.tar.xz
+rm /tmp/ttf.tar.xz /tmp/nerd.tar.xz
 
 sed -i "s/^version=.*/version=$LATEST_VER/" "$TEMPLATE"
 
-# Update 3 baris checksum sekaligus
-python3 - "$TEMPLATE" "$CS1" "$CS2" "$CS3" <<'EOF'
+python3 - "$TEMPLATE" "$CS1" "$CS2" <<'PYEOF'
 import sys, re
-path, cs1, cs2, cs3 = sys.argv[1:]
+path, cs1, cs2 = sys.argv[1:]
 with open(path) as f:
     content = f.read()
-new_checksum = f'checksum="{cs1}\n {cs2}\n {cs3}"'
+new_checksum = f'checksum="{cs1}\n {cs2}"'
 content = re.sub(r'checksum="[^"]*"', new_checksum, content, flags=re.DOTALL)
 with open(path, 'w') as f:
     f.write(content)
-EOF
+PYEOF
 
 echo "Template updated ke $LATEST_VER"
 echo "NEW_VERSION=$LATEST_VER" >> $GITHUB_ENV
