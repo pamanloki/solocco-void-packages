@@ -35,6 +35,8 @@ jobs:
             restricted: false
           - package: mayucode-bin
             restricted: false
+          - package: driftwm
+            restricted: false
 
     runs-on: ubuntu-latest
     container:
@@ -229,7 +231,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           for pkg in zen-browser-bin google-chrome-bin helium-browser-bin \
-                     brave-origin-beta iosevkaku-bin mayucode-bin; do
+                     brave-origin-beta iosevkaku-bin mayucode-bin \
+                     driftwm; do
             gh release view repo-latest \
               --repo ${{ github.repository }} \
               --json assets \
