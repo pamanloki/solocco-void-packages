@@ -4,7 +4,7 @@ REPO="solocco/my-fonts"
 TEMPLATE="srcpkgs/iosevkaku-bin/template"
 
 LATEST_VER=$(curl -s "https://api.github.com/repos/$REPO/releases" | \
-  jq -r '[.[] | select(.tag_name | startswith("Iosevka/"))] | .[0].tag_name // empty' | sed 's|Iosevka/v||')
+  jq -r '[.[] | select(.tag_name | startswith("Iosevka-v"))] | .[0].tag_name // empty' | sed 's/Iosevka-v//')
 CURRENT_VER=$(grep '^version=' "$TEMPLATE" | cut -d= -f2 | tr -d '"')
 echo "Current: $CURRENT_VER | Latest: $LATEST_VER"
 
@@ -18,7 +18,7 @@ if [ "$LATEST_VER" = "$CURRENT_VER" ]; then
 fi
 echo "Update: $CURRENT_VER -> $LATEST_VER"
 
-BASE="https://github.com/$REPO/releases/download/Iosevka%2Fv${LATEST_VER}"
+BASE="https://github.com/$REPO/releases/download/Iosevka-v${LATEST_VER}"
 wget -q "$BASE/Iosevka-TTF.tar.xz"      -O /tmp/ttf.tar.xz
 wget -q "$BASE/Iosevka-NerdFont.tar.xz" -O /tmp/nerd.tar.xz
 

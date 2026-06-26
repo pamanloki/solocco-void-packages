@@ -4,7 +4,7 @@ REPO="solocco/my-fonts"
 TEMPLATE="srcpkgs/piemono-bin/template"
 
 LATEST_VER=$(curl -s "https://api.github.com/repos/$REPO/releases" | \
-  jq -r '[.[] | select(.tag_name | startswith("PieMono/"))] | .[0].tag_name // empty' | sed 's|PieMono/v||')
+  jq -r '[.[] | select(.tag_name | startswith("PieMono-v"))] | .[0].tag_name // empty' | sed 's/PieMono-v//')
 CURRENT_VER=$(grep '^version=' "$TEMPLATE" | cut -d= -f2 | tr -d '"')
 echo "Current: $CURRENT_VER | Latest: $LATEST_VER"
 
@@ -18,7 +18,7 @@ if [ "$LATEST_VER" = "$CURRENT_VER" ]; then
 fi
 echo "Update: $CURRENT_VER -> $LATEST_VER"
 
-BASE="https://github.com/$REPO/releases/download/PieMono%2Fv${LATEST_VER}"
+BASE="https://github.com/$REPO/releases/download/PieMono-v${LATEST_VER}"
 wget -q "$BASE/PieMono-TTF.tar.xz"      -O /tmp/ttf.tar.xz
 wget -q "$BASE/PieMono-NerdFont.tar.xz" -O /tmp/nerd.tar.xz
 

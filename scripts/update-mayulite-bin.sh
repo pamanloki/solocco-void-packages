@@ -4,7 +4,7 @@ REPO="solocco/my-fonts"
 TEMPLATE="srcpkgs/mayulite-bin/template"
 
 LATEST_VER=$(curl -s "https://api.github.com/repos/$REPO/releases" | \
-  jq -r '[.[] | select(.tag_name | startswith("Mayulite/"))] | .[0].tag_name // empty' | sed 's|Mayulite/v||')
+  jq -r '[.[] | select(.tag_name | startswith("Mayulite-v"))] | .[0].tag_name // empty' | sed 's/Mayulite-v//')
 CURRENT_VER=$(grep '^version=' "$TEMPLATE" | cut -d= -f2 | tr -d '"')
 echo "Current: $CURRENT_VER | Latest: $LATEST_VER"
 
@@ -18,9 +18,9 @@ if [ "$LATEST_VER" = "$CURRENT_VER" ]; then
 fi
 echo "Update: $CURRENT_VER -> $LATEST_VER"
 
-BASE="https://github.com/$REPO/releases/download/Mayulite%2Fv${LATEST_VER}"
-wget -q "$BASE/Mayulite-TTF.tar.xz"         -O /tmp/ttf.tar.xz
-wget -q "$BASE/Mayulite-NerdFont.tar.xz"    -O /tmp/nerd.tar.xz
+BASE="https://github.com/$REPO/releases/download/Mayulite-v${LATEST_VER}"
+wget -q "$BASE/Mayulite-TTF.tar.xz"      -O /tmp/ttf.tar.xz
+wget -q "$BASE/Mayulite-NerdFont.tar.xz" -O /tmp/nerd.tar.xz
 
 CS1=$(sha256sum /tmp/ttf.tar.xz  | cut -d' ' -f1)
 CS2=$(sha256sum /tmp/nerd.tar.xz | cut -d' ' -f1)

@@ -6,8 +6,8 @@ short_desc="PieMono TTF and Nerd Font"
 maintainer="solocco"
 license="OFL-1.1"
 homepage="https://github.com/solocco/my-fonts"
-distfiles="https://github.com/solocco/my-fonts/releases/download/PieMono%2Fv${version}/PieMono-TTF.tar.xz
- https://github.com/solocco/my-fonts/releases/download/PieMono%2Fv${version}/PieMono-NerdFont.tar.xz"
+distfiles="https://github.com/solocco/my-fonts/releases/download/PieMono-v${version}/PieMono-TTF.tar.xz
+ https://github.com/solocco/my-fonts/releases/download/PieMono-v${version}/PieMono-NerdFont.tar.xz"
 checksum="2a3d98253e73429ed9a5fc2646b9233b959efa4f6f99c910a25deda8a9d3502c
  8c9d09260caf13a524e8016184d7f2915292fb5cc937a4839495a3748381245e"
 font_dirs="/usr/share/fonts/TTF"

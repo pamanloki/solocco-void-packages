@@ -6,8 +6,8 @@ short_desc="Iosevka TTF and Nerd Font"
 maintainer="solocco"
 license="OFL-1.1"
 homepage="https://github.com/solocco/my-fonts"
-distfiles="https://github.com/solocco/my-fonts/releases/download/Iosevka%2Fv${version}/Iosevka-TTF.tar.xz
- https://github.com/solocco/my-fonts/releases/download/Iosevka%2Fv${version}/Iosevka-NerdFont.tar.xz"
+distfiles="https://github.com/solocco/my-fonts/releases/download/Iosevka-v${version}/Iosevka-TTF.tar.xz
+ https://github.com/solocco/my-fonts/releases/download/Iosevka-v${version}/Iosevka-NerdFont.tar.xz"
 checksum="8ae1952c64ffd5346c0df3bbdca7379a112185922e297fd1ccf41de355001ef5
  e11dd0956667a9bd2838aff6e679fa6f0a7951265317b9afff38016b36ff71cc"
 font_dirs="/usr/share/fonts/TTF"

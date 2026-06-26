@@ -4,7 +4,7 @@ REPO="solocco/my-fonts"
 TEMPLATE="srcpkgs/ioskeley-bin/template"
 
 LATEST_VER=$(curl -s "https://api.github.com/repos/$REPO/releases" | \
-  jq -r '[.[] | select(.tag_name | startswith("IoskeleyMono/"))] | .[0].tag_name // empty' | sed 's|IoskeleyMono/v||')
+  jq -r '[.[] | select(.tag_name | startswith("IoskeleyMono-v"))] | .[0].tag_name // empty' | sed 's/IoskeleyMono-v//')
 CURRENT_VER=$(grep '^version=' "$TEMPLATE" | cut -d= -f2 | tr -d '"')
 echo "Current: $CURRENT_VER | Latest: $LATEST_VER"
 
@@ -18,7 +18,7 @@ if [ "$LATEST_VER" = "$CURRENT_VER" ]; then
 fi
 echo "Update: $CURRENT_VER -> $LATEST_VER"
 
-BASE="https://github.com/$REPO/releases/download/IoskeleyMono%2Fv${LATEST_VER}"
+BASE="https://github.com/$REPO/releases/download/IoskeleyMono-v${LATEST_VER}"
 wget -q "$BASE/IoskeleyMono-TTF.tar.xz"      -O /tmp/ttf.tar.xz
 wget -q "$BASE/IoskeleyMono-NerdFont.tar.xz" -O /tmp/nerd.tar.xz
 
