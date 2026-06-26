@@ -2,17 +2,17 @@ pkgname=iosevkaku-bin
 version=34.6.3
 revision=1
 depends="font-util"
-short_desc="Iosevka TTF and Nerd Font Mono"
+short_desc="Iosevka TTF and Nerd Font"
 maintainer="solocco"
 license="OFL-1.1"
-homepage="https://github.com/solocco/iosevka-nf"
-distfiles="https://github.com/solocco/iosevka-nf/releases/download/v${version}/Iosevka-TTF-${version}.tar.xz
- https://github.com/solocco/iosevka-nf/releases/download/v${version}/IosevkaNerd-TTF-${version}.tar.xz"
-checksum="c35acc93f613a0dc4115f1848d549f74ab86811c6eb7d2c14d7a1f542d6d7f65
- a7d3972bed0c24a1c13d6ac15f1753bf785befda97e01c9c7c11e06234d1e016"
+homepage="https://github.com/solocco/my-fonts"
+distfiles="https://github.com/solocco/my-fonts/releases/download/Iosevka%2Fv${version}/Iosevka-TTF.tar.xz
+ https://github.com/solocco/my-fonts/releases/download/Iosevka%2Fv${version}/Iosevka-NerdFont.tar.xz"
+checksum="8ae1952c64ffd5346c0df3bbdca7379a112185922e297fd1ccf41de355001ef5
+ e11dd0956667a9bd2838aff6e679fa6f0a7951265317b9afff38016b36ff71cc"
 font_dirs="/usr/share/fonts/TTF"
 provides="font:monospace-0_1"
-
+ 
 do_install() {
     vmkdir usr/share/fonts/TTF
     vcopy *.ttf usr/share/fonts/TTF

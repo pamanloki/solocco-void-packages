@@ -2,19 +2,17 @@ pkgname=ioskeley-bin
 version=34.6.3
 revision=1
 depends="font-util"
-short_desc="IoskeleyMono TTF, Nerd Font, and Nerd Font Term"
+short_desc="IoskeleyMono TTF and Nerd Font"
 maintainer="solocco"
 license="OFL-1.1"
-homepage="https://github.com/solocco/ioskeleymono"
-distfiles="https://github.com/solocco/ioskeleymono/releases/download/v${version}/IoskeleyMono-TTF.tar.xz
- https://github.com/solocco/ioskeleymono/releases/download/v${version}/IoskeleyMono-NerdFont.tar.xz
- https://github.com/solocco/ioskeleymono/releases/download/v${version}/IoskeleyMonoTerm-NerdFont.tar.xz"
-checksum="7615ed3bc837cdcd4ddecbdbc533109e9d1f2c9cfb2b44c0a53d5bdd777ed4ff
- 43b7fc4fe4a48acf917646f8c9d06e0a36e8acf8ba3d0881bce555845645bf9f
- 015ae929b3d8932acc2174cd1931c8810d79e0216f1d2b79c8dae56cd0b38a1b"
+homepage="https://github.com/solocco/my-fonts"
+distfiles="https://github.com/solocco/my-fonts/releases/download/IoskeleyMono%2Fv${version}/IoskeleyMono-TTF.tar.xz
+ https://github.com/solocco/my-fonts/releases/download/IoskeleyMono%2Fv${version}/IoskeleyMono-NerdFont.tar.xz"
+checksum="949166ccbf1ce61aeb33cf00ab0cd6f8a636430db6837d5e4d124dcc78a60143
+ ab3a77a92c04f4c19ecbc5770a76c7a534c44f33c114932c4b2a3e1e6d8322af"
 font_dirs="/usr/share/fonts/TTF"
 provides="font:monospace-0_1"
-
+ 
 do_install() {
     vmkdir usr/share/fonts/TTF
     vcopy *.ttf usr/share/fonts/TTF

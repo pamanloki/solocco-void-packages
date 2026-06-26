@@ -5,13 +5,13 @@ depends="font-util"
 short_desc="Mayulite TTF and Nerd Font"
 maintainer="solocco"
 license="OFL-1.1"
-homepage="https://github.com/solocco/mayulite-font"
-distfiles="https://github.com/solocco/mayulite-font/releases/download/v${version}/Mayulite-TTF.tar.xz
- https://github.com/solocco/mayulite-font/releases/download/v${version}/MayuliteNerdFont-TTF.tar.xz"
+homepage="https://github.com/solocco/my-fonts"
+distfiles="https://github.com/solocco/my-fonts/releases/download/Mayulite%2Fv${version}/Mayulite-TTF.tar.xz
+ https://github.com/solocco/my-fonts/releases/download/Mayulite%2Fv${version}/Mayulite-NerdFont.tar.xz"
 checksum="4c68329dc573d5a8fb9e8a700d0536762c352c97c760ea15fe4c60071a59517a
- c917d855285100383e15663dfc44f587d8ba2640c70575f8629e8ada361e77f9"
+ f71e7b7f79ecb123012cfed12ba087e2ff89d9e4d941ca7400ab3da102cc43f4"
 font_dirs="/usr/share/fonts/TTF"
-
+ 
 do_install() {
     vmkdir usr/share/fonts/TTF
     vcopy *.ttf usr/share/fonts/TTF
