@@ -29,8 +29,6 @@ jobs:
             restricted: true
           - package: helium-browser-bin
             restricted: false
-          - package: mayulite-bin
-            restricted: false
           - package: brave-origin-beta
             restricted: true
           - package: iosevkaku-bin
@@ -231,8 +229,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           for pkg in zen-browser-bin google-chrome-bin helium-browser-bin \
-                     mayulite-bin brave-origin-beta iosevkaku-bin \
-                     mayucode-bin; do
+                     brave-origin-beta iosevkaku-bin mayucode-bin; do
             gh release view repo-latest \
               --repo ${{ github.repository }} \
               --json assets \
