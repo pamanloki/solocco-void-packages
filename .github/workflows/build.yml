@@ -134,8 +134,9 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  publish:
-    name: Publish to Cloudflare Pages
+  # Sign & index di void container (butuh xbps-rindex)
+  sign:
+    name: Sign and index repo
     needs: build
     if: always() && needs.build.result != 'skipped'
     runs-on: ubuntu-latest
@@ -155,8 +156,7 @@ jobs:
         run: |
           mkdir -p /etc/xbps.d && cp /usr/share/xbps.d/*-repository-*.conf /etc/xbps.d/
           sed -i 's|repo-default|repo-ci|g' /etc/xbps.d/*-repository-*.conf
-          xbps-install -Syu xbps && xbps-install -yu && xbps-install -y curl nodejs npm
-          npm install -g wrangler
+          xbps-install -Syu xbps && xbps-install -yu
 
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
@@ -174,7 +174,6 @@ jobs:
             echo "has_pkgs=false" >> $GITHUB_OUTPUT
           fi
 
-      # Cache key pakai repo name saja supaya selalu restore state terakhir
       - name: Restore repo cache
         if: steps.check.outputs.has_pkgs == 'true'
         uses: actions/cache@v4
@@ -213,23 +212,46 @@ jobs:
           xbps-rindex -S --privkey private.pem *.xbps
           rm -f private.pem
 
-      - name: Prepare public dir
+      - name: Upload signed repo artifact
         if: steps.check.outputs.has_pkgs == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-repo
+          path: /tmp/repo/
+          retention-days: 1
+
+  # Deploy ke CF Pages di ubuntu biasa (ada npm/wrangler)
+  deploy:
+    name: Deploy to Cloudflare Pages
+    needs: sign
+    if: always() && needs.sign.result == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Download signed repo
+        uses: actions/download-artifact@v4
+        with:
+          name: signed-repo
+          path: /tmp/repo
+
+      - name: Prepare public dir
         run: |
-          mkdir -p /tmp/public/keys
-          cp /tmp/repo/*.xbps /tmp/public/
-          cp /tmp/repo/*.xbps.sig2 /tmp/public/
-          cp /tmp/repo/x86_64-repodata /tmp/public/
-          chmod +x main-repo/scripts/generate-index.sh
-          main-repo/scripts/generate-index.sh /tmp/public main-repo/srcpkgs
+          mkdir -p /tmp/public
+          cp /tmp/repo/*.xbps /tmp/public/ 2>/dev/null || true
+          cp /tmp/repo/*.xbps.sig2 /tmp/public/ 2>/dev/null || true
+          cp /tmp/repo/x86_64-repodata /tmp/public/ 2>/dev/null || true
+          chmod +x scripts/generate-index.sh
+          scripts/generate-index.sh /tmp/public srcpkgs
 
       - name: Deploy to Cloudflare Pages
-        if: steps.check.outputs.has_pkgs == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: |
-          wrangler pages deploy /tmp/public \
+          npx wrangler pages deploy /tmp/public \
             --project-name=solocco-void-packages \
             --branch=main \
             --commit-dirty=true
