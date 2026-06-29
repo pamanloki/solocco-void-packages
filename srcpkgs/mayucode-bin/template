@@ -8,8 +8,8 @@ license="OFL-1.1"
 homepage="https://github.com/solocco/my-fonts"
 distfiles="https://github.com/solocco/my-fonts/releases/download/MayuCode-v${version}/MayuCode-TTF.tar.xz
  https://github.com/solocco/my-fonts/releases/download/MayuCode-v${version}/MayuCode-NerdFont.tar.xz"
-checksum="5c49c1d112ce5a7a295154af11141483920a97a10ec288090b62fa8300e4110a
- d8ff72820962c4354a5f46e291ca033926f97d81a646c4588aea54d09c1bea89"
+checksum="58e75528a8935bf03fc65b83491adf881b753a3169acf8d3163e9162936aaf81
+ 74c2299f0398c28f425793d96a68dcf844dc4808d2bc27329d6675df3c04c48c"
 font_dirs="/usr/share/fonts/TTF"
 provides="font:monospace-0_1"
  
