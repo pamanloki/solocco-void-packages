@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: 'Package to build (zen-browser-bin / google-chrome-bin / helium-browser-bin / mayulite-bin / brave-origin-beta / iosevkaku-bin / mayucode-bin / all)'
+        description: 'Package to build (zen-browser-bin / google-chrome-bin / helium-browser-bin / mayulite-bin / brave-origin-beta / iosevkaku-bin / mayucode-bin / driftwm / all)'
         required: false
         default: 'all'
         type: string
@@ -80,8 +80,6 @@ jobs:
           mkdir -p /etc/xbps.d && cp /usr/share/xbps.d/*-repository-*.conf /etc/xbps.d/
           sed -i 's|repo-default|repo-ci|g' /etc/xbps.d/*-repository-*.conf
           xbps-install -Syu xbps && xbps-install -yu && xbps-install -y sudo bash curl git
-          curl -fsSL https://github.com/cli/cli/releases/download/v2.67.0/gh_2.67.0_linux_amd64.tar.gz | tar -xz -C /tmp
-          install -m755 /tmp/gh_2.67.0_linux_amd64/bin/gh /usr/local/bin/gh
           useradd -G xbuilder -M builder
           echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
 
@@ -137,7 +135,7 @@ jobs:
           retention-days: 1
 
   publish:
-    name: Publish repo
+    name: Publish to Cloudflare Pages
     needs: build
     if: always() && needs.build.result != 'skipped'
     runs-on: ubuntu-latest
@@ -148,13 +146,17 @@ jobs:
         - /dev:/dev
 
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          path: main-repo
+
       - name: Prepare container
         run: |
           mkdir -p /etc/xbps.d && cp /usr/share/xbps.d/*-repository-*.conf /etc/xbps.d/
           sed -i 's|repo-default|repo-ci|g' /etc/xbps.d/*-repository-*.conf
-          xbps-install -Syu xbps && xbps-install -yu && xbps-install -y curl
-          curl -fsSL https://github.com/cli/cli/releases/download/v2.67.0/gh_2.67.0_linux_amd64.tar.gz | tar -xz -C /tmp
-          install -m755 /tmp/gh_2.67.0_linux_amd64/bin/gh /usr/local/bin/gh
+          xbps-install -Syu xbps && xbps-install -yu && xbps-install -y curl nodejs npm
+          npm install -g wrangler
 
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
@@ -170,33 +172,30 @@ jobs:
             echo "has_pkgs=true" >> $GITHUB_OUTPUT
           else
             echo "has_pkgs=false" >> $GITHUB_OUTPUT
-            echo "No new packages built, nothing to publish."
           fi
 
-      - name: Download existing repo from release
+      # Cache key pakai repo name saja supaya selalu restore state terakhir
+      - name: Restore repo cache
         if: steps.check.outputs.has_pkgs == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p /tmp/repo
-          gh release download repo-latest \
-            --repo ${{ github.repository }} \
-            --dir /tmp/repo \
-            --pattern "*.xbps" \
-            --pattern "x86_64-repodata" || echo "No existing release found, starting fresh"
+        uses: actions/cache@v4
+        with:
+          path: /tmp/repo
+          key: xbps-repo-state
+          restore-keys: xbps-repo-state
 
       - name: Merge new packages into repo
         if: steps.check.outputs.has_pkgs == 'true'
         run: |
+          mkdir -p /tmp/repo
           find /tmp/new-pkgs -name "*.xbps" -exec cp -f {} /tmp/repo/ \;
 
-      - name: Cleanup old versions from local repo dir
+      - name: Cleanup old versions
         if: steps.check.outputs.has_pkgs == 'true'
         run: |
           cd /tmp/repo
           for pkg in zen-browser-bin google-chrome-bin helium-browser-bin \
                      mayulite-bin brave-origin-beta iosevkaku-bin \
-                     ioskeley-bin cidmono-bin piemono-bin mayucode-bin; do
+                     ioskeley-bin cidmono-bin piemono-bin mayucode-bin driftwm; do
             ls -t ${pkg}-*.xbps 2>/dev/null | tail -n +2 | xargs -r rm -f
           done
 
@@ -214,45 +213,23 @@ jobs:
           xbps-rindex -S --privkey private.pem *.xbps
           rm -f private.pem
 
-      - name: Ensure release exists
+      - name: Prepare public dir
         if: steps.check.outputs.has_pkgs == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create repo-latest \
-            --repo ${{ github.repository }} \
-            --title "solocco-void-packages" \
-            --notes "Permanent repository release. Files are updated automatically on each build." \
-            --latest 2>/dev/null || true
+          mkdir -p /tmp/public/keys
+          cp /tmp/repo/*.xbps /tmp/public/
+          cp /tmp/repo/*.xbps.sig2 /tmp/public/
+          cp /tmp/repo/x86_64-repodata /tmp/public/
+          chmod +x main-repo/scripts/generate-index.sh
+          main-repo/scripts/generate-index.sh /tmp/public main-repo/srcpkgs
 
-      - name: Delete old package assets from release
+      - name: Deploy to Cloudflare Pages
         if: steps.check.outputs.has_pkgs == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: |
-          for pkg in zen-browser-bin google-chrome-bin helium-browser-bin \
-                     brave-origin-beta iosevkaku-bin mayucode-bin \
-                     driftwm; do
-            gh release view repo-latest \
-              --repo ${{ github.repository }} \
-              --json assets \
-              --jq ".assets[].name" 2>/dev/null \
-            | grep "^${pkg}-.*\.xbps" \
-            | while read -r asset; do
-                echo "Deleting old asset: $asset"
-                gh release delete-asset repo-latest "$asset" \
-                  --repo ${{ github.repository }} -y || true
-              done
-          done
-
-      - name: Upload to permanent release
-        if: steps.check.outputs.has_pkgs == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          for f in /tmp/repo/*; do
-            gh release upload repo-latest \
-              --repo ${{ github.repository }} \
-              --clobber \
-              "$f" || true
-          done
+          wrangler pages deploy /tmp/public \
+            --project-name=solocco-void-packages \
+            --branch=main \
+            --commit-dirty=true
