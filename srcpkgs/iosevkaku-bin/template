@@ -8,8 +8,8 @@ license="OFL-1.1"
 homepage="https://github.com/solocco/my-fonts"
 distfiles="https://github.com/solocco/my-fonts/releases/download/Iosevka-v${version}/Iosevka-TTF.tar.xz
  https://github.com/solocco/my-fonts/releases/download/Iosevka-v${version}/Iosevka-NerdFont.tar.xz"
-checksum="8ae1952c64ffd5346c0df3bbdca7379a112185922e297fd1ccf41de355001ef5
- e11dd0956667a9bd2838aff6e679fa6f0a7951265317b9afff38016b36ff71cc"
+checksum="6ad0db49860fd6cfe66a30d2f2777f99ded84e9d83a4380f824576b01876c148
+ 13d037dc8a7467214f4c5a738cb19a8f42038eff968059ec84655dff65547b65"
 font_dirs="/usr/share/fonts/TTF"
 provides="font:monospace-0_1"
  
