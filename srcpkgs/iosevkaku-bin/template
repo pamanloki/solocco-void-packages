@@ -1,5 +1,5 @@
 pkgname=iosevkaku-bin
-version=34.6.3
+version=34.7.0
 revision=1
 depends="font-util"
 short_desc="Iosevka TTF and Nerd Font"
@@ -8,8 +8,8 @@ license="OFL-1.1"
 homepage="https://github.com/solocco/my-fonts"
 distfiles="https://github.com/solocco/my-fonts/releases/download/Iosevka-v${version}/Iosevka-TTF.tar.xz
  https://github.com/solocco/my-fonts/releases/download/Iosevka-v${version}/Iosevka-NerdFont.tar.xz"
-checksum="6ad0db49860fd6cfe66a30d2f2777f99ded84e9d83a4380f824576b01876c148
- 13d037dc8a7467214f4c5a738cb19a8f42038eff968059ec84655dff65547b65"
+checksum="c242de967870b6d6a219877c960a6b1d991ee47e48bcad4147c6bc74c299e8ee
+ 98adbe6aaec322949b4efb6c4bf59e639f64eb8d411bab0bb6fcb54224c9ce5a"
 font_dirs="/usr/share/fonts/TTF"
 provides="font:monospace-0_1"
  
