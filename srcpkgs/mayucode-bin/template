@@ -1,5 +1,5 @@
 pkgname=mayucode-bin
-version=34.6.3
+version=34.7.0
 revision=1
 depends="font-util"
 short_desc="MayuCode TTF and Nerd Font"
@@ -8,8 +8,8 @@ license="OFL-1.1"
 homepage="https://github.com/solocco/my-fonts"
 distfiles="https://github.com/solocco/my-fonts/releases/download/MayuCode-v${version}/MayuCode-TTF.tar.xz
  https://github.com/solocco/my-fonts/releases/download/MayuCode-v${version}/MayuCode-NerdFont.tar.xz"
-checksum="58e75528a8935bf03fc65b83491adf881b753a3169acf8d3163e9162936aaf81
- 74c2299f0398c28f425793d96a68dcf844dc4808d2bc27329d6675df3c04c48c"
+checksum="166ffd7a022f95e86dd19bc1407ccf37d5ccfaf6b8548320a254872451a8ecef
+ d40be614d3ab1f05911bce98b0f95ef8d86c42d464e4ff29ccf2cb9f9037c34c"
 font_dirs="/usr/share/fonts/TTF"
 provides="font:monospace-0_1"
  
