@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: 'Package to build (zen-browser-bin / google-chrome-bin / helium-browser-bin / mayulite-bin / brave-origin-beta / iosevkaku-bin / mayucode-bin / all)'
+        description: 'Package to build (zen-browser-bin / google-chrome-bin / helium-browser-bin / mayulite-bin / brave-origin-beta / iosevkaku-bin / mayucode-bin / driftwm / superfile / all)'
         required: false
         default: 'all'
         type: string
@@ -36,6 +36,8 @@ jobs:
           - package: mayucode-bin
             restricted: false
           - package: driftwm
+            restricted: false
+          - package: superfile
             restricted: false
 
     runs-on: ubuntu-latest
@@ -196,7 +198,8 @@ jobs:
           cd /tmp/repo
           for pkg in zen-browser-bin google-chrome-bin helium-browser-bin \
                      mayulite-bin brave-origin-beta iosevkaku-bin \
-                     ioskeley-bin cidmono-bin piemono-bin mayucode-bin; do
+                     ioskeley-bin cidmono-bin piemono-bin mayucode-bin \
+                     driftwm superfile; do
             ls -t ${pkg}-*.xbps 2>/dev/null | tail -n +2 | xargs -r rm -f
           done
 
@@ -232,7 +235,7 @@ jobs:
         run: |
           for pkg in zen-browser-bin google-chrome-bin helium-browser-bin \
                      brave-origin-beta iosevkaku-bin mayucode-bin \
-                     driftwm; do
+                     driftwm superfile; do
             gh release view repo-latest \
               --repo ${{ github.repository }} \
               --json assets \

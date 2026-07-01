@@ -1,0 +1,19 @@
+# Template file for 'superfile'
+pkgname=superfile
+version=1.6.0
+revision=1
+build_style=go
+go_import_path="github.com/yorukot/superfile"
+go_package="${go_import_path}"
+make_check=no
+short_desc="Pretty fancy and modern terminal file manager"
+maintainer="solocco <noreply@github.com>"
+license="MIT"
+homepage="https://superfile.dev"
+changelog="https://raw.githubusercontent.com/yorukot/superfile/main/website/src/content/docs/changelog.mdx"
+distfiles="https://github.com/yorukot/superfile/archive/refs/tags/v${version}.tar.gz"
+checksum=7340ce9e3e7db401164310dd5d2d1dfa3ccf76118ac49d192b0fac2a292c5b0d
+
+post_install() {
+	mv "${DESTDIR}/usr/bin/superfile" "${DESTDIR}/usr/bin/spf"
+}
