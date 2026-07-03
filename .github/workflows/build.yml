@@ -39,6 +39,8 @@ jobs:
             restricted: false
           - package: superfile
             restricted: false
+          - package: nushell
+            restricted: false
 
     runs-on: ubuntu-latest
     container:
