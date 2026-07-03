@@ -41,6 +41,8 @@ jobs:
             restricted: false
           - package: nushell
             restricted: false
+          - package: noctalia
+            restricted: false
 
     runs-on: ubuntu-latest
     container:
