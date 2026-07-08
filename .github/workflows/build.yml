@@ -41,9 +41,7 @@ jobs:
             restricted: false
           - package: nushell
             restricted: false
-          - package: noctalia
-            restricted: false
-
+         
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/void-linux/void-glibc-full
@@ -158,7 +156,7 @@ jobs:
       PKG_LIST: >-
         zen-browser-bin google-chrome-bin helium-browser-bin
         brave-origin-beta iosevkaku-bin mayucode-bin
-        driftwm superfile nushell noctalia
+        driftwm superfile nushell 
 
     steps:
       - name: Prepare container
