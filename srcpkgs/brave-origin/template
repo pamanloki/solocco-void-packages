@@ -1,0 +1,21 @@
+# Template file for 'brave-browser'
+# Repackages the official rpm package.
+pkgname=brave-origin
+version=1.92.138
+revision=1
+archs="x86_64"
+create_wrksrc=yes
+hostmakedepends="rpmextract"
+short_desc="Browser that rethinks the web"
+maintainer="solocco"
+license="MPL-2.0"
+homepage="https://www.brave.com/"
+changelog="https://brave.com/latest/"
+distfiles="https://github.com/brave/brave-browser/releases/download/v${version}/brave-origin-${version}-1.x86_64.rpm"
+checksum="f0af419b0ce03c245b36869ee2a1f79ce00143174a0f382f686a6d1faeef57a3"
+do_install() {
+	rm -f etc/cron.daily/brave-origin
+	vcopy "*" /
+	vmkdir usr/share/pixmaps
+	vinstall opt/brave.com/brave-origin/product_logo_128.png 644 usr/share/pixmaps brave-origin.png
+}

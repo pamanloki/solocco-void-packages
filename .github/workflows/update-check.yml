@@ -147,9 +147,9 @@ jobs:
           add: 'srcpkgs/mayulite-bin/template'
           github_token: ${{ secrets.PAT_TOKEN }}
 
-  # ==================== BRAVE ORIGIN BETA ====================
-  update-brave-origin-beta:
-    name: Check brave-origin-beta updates
+  # ==================== BRAVE ORIGIN (STABLE) ====================
+  update-brave-origin:
+    name: Check brave-origin updates
     needs: update-mayulite-bin
     if: always()
     runs-on: ubuntu-latest
@@ -164,8 +164,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          chmod +x scripts/update-brave-origin-beta.sh
-          ./scripts/update-brave-origin-beta.sh
+          chmod +x scripts/update-brave-origin.sh
+          ./scripts/update-brave-origin.sh
 
       - name: Pull latest changes
         if: env.NEW_VERSION != ''
@@ -178,14 +178,14 @@ jobs:
         if: env.NEW_VERSION != ''
         uses: EndBug/add-and-commit@v9
         with:
-          message: "Update brave-origin-beta to ${{ env.NEW_VERSION }}"
-          add: 'srcpkgs/brave-origin-beta/template'
+          message: "Update brave-origin to ${{ env.NEW_VERSION }}"
+          add: 'srcpkgs/brave-origin/template'
           github_token: ${{ secrets.PAT_TOKEN }}
 
   # ==================== IOSEVKAKU ====================
   update-iosevkaku-bin:
     name: Check iosevkaku-bin updates
-    needs: update-brave-origin-beta
+    needs: update-brave-origin
     if: always()
     runs-on: ubuntu-latest
     steps:

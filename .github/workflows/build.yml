@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: 'Package to build (zen-browser-bin / google-chrome-bin / helium-browser-bin / brave-origin-beta / iosevkaku-bin / mayucode-bin / driftwm / superfile / nushell / all)'
+        description: 'Package to build (zen-browser-bin / google-chrome-bin / helium-browser-bin / brave-origin / iosevkaku-bin / mayucode-bin / driftwm / superfile / nushell / all)'
         required: false
         default: 'all'
         type: string
@@ -30,7 +30,7 @@ jobs:
             restricted: true
           - package: helium-browser-bin
             restricted: false
-          - package: brave-origin-beta
+          - package: brave-origin
             restricted: true
           - package: iosevkaku-bin
             restricted: false
@@ -157,7 +157,7 @@ jobs:
       # Tinggal tambah nama paket di sini tiap nambah paket baru.
       PKG_LIST: >-
         zen-browser-bin google-chrome-bin helium-browser-bin
-        brave-origin-beta iosevkaku-bin mayucode-bin
+        brave-origin iosevkaku-bin mayucode-bin
         driftwm superfile nushell
 
     steps:
