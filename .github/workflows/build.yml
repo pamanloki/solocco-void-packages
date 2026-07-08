@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: 'Package to build (zen-browser-bin / google-chrome-bin / helium-browser-bin / mayulite-bin / brave-origin-beta / iosevkaku-bin / mayucode-bin / driftwm / superfile / all)'
+        description: 'Package to build (zen-browser-bin / google-chrome-bin / helium-browser-bin / brave-origin-beta / iosevkaku-bin / mayucode-bin / driftwm / superfile / nushell / all)'
         required: false
         default: 'all'
         type: string
@@ -41,7 +41,7 @@ jobs:
             restricted: false
           - package: nushell
             restricted: false
-         
+
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/void-linux/void-glibc-full
@@ -156,7 +156,7 @@ jobs:
       PKG_LIST: >-
         zen-browser-bin google-chrome-bin helium-browser-bin
         brave-origin-beta iosevkaku-bin mayucode-bin
-        driftwm superfile nushell 
+        driftwm superfile nushell
 
     steps:
       - name: Prepare container
@@ -217,11 +217,11 @@ jobs:
           export PATH="/opt/xbps/usr/bin/:$PATH"
           cd /tmp/repo
           rm -f x86_64-repodata *.xbps.sig2
+          trap 'rm -f private.pem' EXIT
           echo "$PRIV_KEY" > private.pem
           xbps-rindex -a *.xbps
           xbps-rindex -s --signedby "solocco" --privkey private.pem $PWD
           xbps-rindex -S --privkey private.pem *.xbps
-          rm -f private.pem
 
       - name: Ensure release exists
         if: steps.check.outputs.has_pkgs == 'true'
@@ -262,4 +262,4 @@ jobs:
               --repo ${{ github.repository }} \
               --clobber \
               "$f" || true
-          done 
+          done
