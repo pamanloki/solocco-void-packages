@@ -19,6 +19,7 @@ permissions:
 jobs:
   build:
     name: Build ${{ matrix.package }}
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -144,6 +145,7 @@ jobs:
     name: Publish repo
     needs: build
     if: always() && needs.build.result != 'skipped'
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/void-linux/void-glibc-full
