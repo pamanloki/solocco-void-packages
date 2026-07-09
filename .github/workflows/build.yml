@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: 'Package to build (zen-browser-bin / google-chrome-bin / helium-browser-bin / brave-origin / iosevkaku-bin / mayucode-bin / driftwm / superfile / nushell / all)'
+        description: 'Package to build (lihat packages.json untuk daftar lengkap / "all")'
         required: false
         default: 'all'
         type: string
@@ -17,31 +17,32 @@ permissions:
   contents: write
 
 jobs:
+  setup:
+    name: Load package list
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+      pkg_list: ${{ steps.set.outputs.pkg_list }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Generate matrix and pkg list
+        id: set
+        run: |
+          matrix=$(jq -c '{include: .packages}' packages.json)
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+          pkg_list=$(jq -r '.packages[].package' packages.json | tr '\n' ' ')
+          echo "pkg_list=$pkg_list" >> "$GITHUB_OUTPUT"
+
   build:
     name: Build ${{ matrix.package }}
+    needs: setup
     timeout-minutes: 60
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - package: zen-browser-bin
-            restricted: false
-          - package: google-chrome-bin
-            restricted: true
-          - package: helium-browser-bin
-            restricted: false
-          - package: brave-origin
-            restricted: true
-          - package: iosevkaku-bin
-            restricted: false
-          - package: mayucode-bin
-            restricted: false
-          - package: driftwm
-            restricted: false
-          - package: superfile
-            restricted: false
-          - package: nushell
-            restricted: false
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
 
     runs-on: ubuntu-latest
     container:
@@ -143,7 +144,7 @@ jobs:
 
   publish:
     name: Publish repo
-    needs: build
+    needs: [setup, build]
     if: always() && needs.build.result != 'skipped'
     timeout-minutes: 15
     runs-on: ubuntu-latest
@@ -153,12 +154,7 @@ jobs:
       volumes:
         - /dev:/dev
     env:
-      # Satu sumber daftar paket, dipake di cleanup & delete-asset.
-      # Tinggal tambah nama paket di sini tiap nambah paket baru.
-      PKG_LIST: >-
-        zen-browser-bin google-chrome-bin helium-browser-bin
-        brave-origin iosevkaku-bin mayucode-bin
-        driftwm superfile nushell
+      PKG_LIST: ${{ needs.setup.outputs.pkg_list }}
 
     steps:
       - name: Prepare container

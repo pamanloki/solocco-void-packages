@@ -1,0 +1,13 @@
+{
+  "packages": [
+    { "package": "zen-browser-bin", "restricted": false },
+    { "package": "google-chrome-bin", "restricted": true },
+    { "package": "helium-browser-bin", "restricted": false },
+    { "package": "brave-origin", "restricted": true },
+    { "package": "iosevkaku-bin", "restricted": false },
+    { "package": "mayucode-bin", "restricted": false },
+    { "package": "driftwm", "restricted": false },
+    { "package": "superfile", "restricted": false },
+    { "package": "nushell", "restricted": false }
+  ]
+}
