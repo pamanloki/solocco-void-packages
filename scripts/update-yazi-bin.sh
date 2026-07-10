@@ -41,3 +41,4 @@ sed -i "s/^checksum=.*/checksum=${new_checksum}/" "$TEMPLATE"
 sed -i "s/^revision=.*/revision=1/" "$TEMPLATE"
 
 echo "${PKG}: template updated ke ${latest_tag} (checksum ${new_checksum})"
+echo "NEW_VERSION=${latest_tag}" >> "$GITHUB_ENV"
