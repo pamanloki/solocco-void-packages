@@ -1,0 +1,40 @@
+# Template file for 'yazi-bin'
+pkgname=yazi-bin
+version=26.5.6
+revision=1
+archs="x86_64"
+wrksrc="yazi-x86_64-unknown-linux-gnu"
+short_desc="Blazing fast terminal file manager written in Rust (prebuilt binary)"
+maintainer="Pharacox <https://github.com/solocco>"
+license="MIT"
+homepage="https://github.com/sxyazi/yazi"
+distfiles="https://github.com/sxyazi/yazi/releases/download/v${version}/yazi-x86_64-unknown-linux-gnu.zip"
+checksum=1c9096f0a83b8102c194385f644cdeff93cc8269426163c9d033041ebd537bd2
+
+# Prebuilt binary, jangan di-strip biar gak korup
+nostrip=yes
+
+# Biar bentrok kalo user juga install yazi dari repo utama Void
+conflicts="yazi>=0"
+provides="yazi-${version}_${revision}"
+
+do_install() {
+	vbin yazi
+	vbin ya
+
+	vlicense LICENSE
+
+	vcompletion completions/yazi.bash bash yazi
+	vcompletion completions/ya.bash bash ya
+	vcompletion completions/_yazi zsh _yazi
+	vcompletion completions/_ya zsh _ya
+	vcompletion completions/yazi.fish fish yazi.fish
+	vcompletion completions/ya.fish fish ya.fish
+
+	# Nushell gak punya standar dir completion sistem, taruh di share
+	# biar tinggal di-source manual dari config.nu
+	vmkdir usr/share/yazi/completions
+	vcopy completions/yazi.nu usr/share/yazi/completions/yazi.nu
+	vcopy completions/ya.nu usr/share/yazi/completions/ya.nu
+}
+

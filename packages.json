@@ -8,6 +8,7 @@
     { "package": "mayucode-bin", "restricted": false },
     { "package": "driftwm", "restricted": false },
     { "package": "superfile", "restricted": false },
-    { "package": "nushell", "restricted": false }
+    { "package": "nushell", "restricted": false },
+    { "package": "yazi-bin", "restricted": false }
   ]
 }
