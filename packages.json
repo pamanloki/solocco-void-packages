@@ -9,6 +9,7 @@
     { "package": "driftwm", "restricted": false },
     { "package": "superfile", "restricted": false },
     { "package": "nushell", "restricted": false },
-    { "package": "yazi-bin", "restricted": false }
+    { "package": "yazi-bin", "restricted": false },
+    { "package": "runesevka-bin", "restricted": false }
   ]
 }

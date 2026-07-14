@@ -1,0 +1,19 @@
+pkgname=runesevka-bin
+version=34.7.0
+revision=1
+depends="font-util"
+short_desc="Runesevka TTF and Nerd Font"
+maintainer="solocco"
+license="OFL-1.1"
+homepage="https://github.com/solocco/my-fonts"
+distfiles="https://github.com/solocco/my-fonts/releases/download/Runesevka-v${version}/Runesevka-TTF.tar.xz
+ https://github.com/solocco/my-fonts/releases/download/Runesevka-v${version}/Runesevka-NerdFont.tar.xz"
+checksum="997a7bb3aa4ff08a671315592f1ac9152732caf0cfa59d3bb3ba26d4cf2ac745
+ 78596c192f5ab052c3935be0390a03df1864d41918ffe3c3e6ac3468a8dfa0a2"
+font_dirs="/usr/share/fonts/TTF"
+provides="font:monospace-0_1"
+
+do_install() {
+    vmkdir usr/share/fonts/TTF
+    vcopy *.ttf usr/share/fonts/TTF
+}
