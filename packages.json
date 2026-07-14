@@ -44,7 +44,7 @@
     {
       "package": "superfile",
       "restricted": false,
-      "build": true,
+      "build": false,
       "strategy": "source-tarball",
       "repo": "yorukot/superfile"
     },
@@ -58,7 +58,7 @@
     {
       "package": "noctalia",
       "restricted": false,
-      "build": true,
+      "build": false,
       "strategy": "source-tarball",
       "repo": "noctalia-dev/noctalia",
       "dash_strip": true,
@@ -84,21 +84,21 @@
     {
       "package": "ioskeley-bin",
       "restricted": false,
-      "build": true,
+      "build": false,
       "strategy": "font",
       "font": "IoskeleyMono"
     },
     {
       "package": "cidmono-bin",
       "restricted": false,
-      "build": true,
+      "build": false,
       "strategy": "font",
       "font": "CidMono"
     },
     {
       "package": "piemono-bin",
       "restricted": false,
-      "build": true,
+      "build": false,
       "strategy": "font",
       "font": "PieMono"
     },
@@ -112,7 +112,7 @@
     {
       "package": "mayulite-bin",
       "restricted": false,
-      "build": true,
+      "build": false,
       "strategy": "font",
       "font": "Mayulite"
     },
