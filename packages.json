@@ -1,15 +1,127 @@
 {
   "packages": [
-    { "package": "zen-browser-bin", "restricted": false },
-    { "package": "google-chrome-bin", "restricted": true },
-    { "package": "helium-browser-bin", "restricted": false },
-    { "package": "brave-origin", "restricted": true },
-    { "package": "iosevkaku-bin", "restricted": false },
-    { "package": "mayucode-bin", "restricted": false },
-    { "package": "driftwm", "restricted": false },
-    { "package": "superfile", "restricted": false },
-    { "package": "nushell", "restricted": false },
-    { "package": "yazi-bin", "restricted": false },
-    { "package": "runesevka-bin", "restricted": false }
+    {
+      "package": "zen-browser-bin",
+      "restricted": false,
+      "build": true,
+      "strategy": "binary-asset",
+      "repo": "zen-browser/desktop",
+      "asset": "zen.linux-x86_64.tar.xz",
+      "quoted_checksum": true,
+      "url_v_prefix": false
+    },
+    {
+      "package": "google-chrome-bin",
+      "restricted": true,
+      "build": true,
+      "strategy": "chrome"
+    },
+    {
+      "package": "helium-browser-bin",
+      "restricted": false,
+      "build": true,
+      "strategy": "binary-asset",
+      "repo": "imputnet/helium-linux",
+      "asset": "helium-{version}-x86_64_linux.tar.xz",
+      "quoted_checksum": true,
+      "url_v_prefix": false
+    },
+    {
+      "package": "brave-origin",
+      "restricted": true,
+      "build": true,
+      "strategy": "brave"
+    },
+    {
+      "package": "driftwm",
+      "restricted": false,
+      "build": true,
+      "strategy": "source-tarball",
+      "repo": "malbiruk/driftwm",
+      "fallback_tags": true,
+      "reset_revision": false
+    },
+    {
+      "package": "superfile",
+      "restricted": false,
+      "build": true,
+      "strategy": "source-tarball",
+      "repo": "yorukot/superfile"
+    },
+    {
+      "package": "nushell",
+      "restricted": false,
+      "build": true,
+      "strategy": "source-tarball",
+      "repo": "nushell/nushell"
+    },
+    {
+      "package": "noctalia",
+      "restricted": false,
+      "build": true,
+      "strategy": "source-tarball",
+      "repo": "noctalia-dev/noctalia",
+      "dash_strip": true,
+      "set_tag_var": true
+    },
+    {
+      "package": "yazi-bin",
+      "restricted": false,
+      "build": true,
+      "strategy": "binary-asset",
+      "repo": "sxyazi/yazi",
+      "asset": "yazi-x86_64-unknown-linux-gnu.zip",
+      "quoted_checksum": false,
+      "url_v_prefix": true
+    },
+    {
+      "package": "iosevkaku-bin",
+      "restricted": false,
+      "build": true,
+      "strategy": "font",
+      "font": "Iosevka"
+    },
+    {
+      "package": "ioskeley-bin",
+      "restricted": false,
+      "build": true,
+      "strategy": "font",
+      "font": "IoskeleyMono"
+    },
+    {
+      "package": "cidmono-bin",
+      "restricted": false,
+      "build": true,
+      "strategy": "font",
+      "font": "CidMono"
+    },
+    {
+      "package": "piemono-bin",
+      "restricted": false,
+      "build": true,
+      "strategy": "font",
+      "font": "PieMono"
+    },
+    {
+      "package": "mayucode-bin",
+      "restricted": false,
+      "build": true,
+      "strategy": "font",
+      "font": "MayuCode"
+    },
+    {
+      "package": "mayulite-bin",
+      "restricted": false,
+      "build": true,
+      "strategy": "font",
+      "font": "Mayulite"
+    },
+    {
+      "package": "runesevka-bin",
+      "restricted": false,
+      "build": true,
+      "strategy": "font",
+      "font": "Runesevka"
+    }
   ]
 }

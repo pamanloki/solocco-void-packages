@@ -1,0 +1,253 @@
+#!/bin/bash
+set -euo pipefail
+
+# Universal update script - dipanggil dari update-check.yml
+# Usage: ./scripts/update.sh '<json config 1 package dari packages.json>'
+# env opsional: GH_TOKEN (naikin rate limit GitHub API)
+
+PKG_JSON="$1"
+
+pkg=$(echo "$PKG_JSON" | jq -r '.package')
+strategy=$(echo "$PKG_JSON" | jq -r '.strategy')
+repo=$(echo "$PKG_JSON" | jq -r '.repo // empty')
+template="srcpkgs/${pkg}/template"
+
+AUTH_HEADER=()
+if [ -n "${GH_TOKEN:-}" ]; then
+  AUTH_HEADER=(-H "Authorization: Bearer ${GH_TOKEN}")
+fi
+
+gh_api() {
+  curl -fsSL "${AUTH_HEADER[@]}" "https://api.github.com/$1"
+}
+
+current_version() {
+  grep -m1 '^version=' "$template" | cut -d= -f2 | tr -d '"'
+}
+
+set_version() {
+  sed -i "s/^version=.*/version=$1/" "$template"
+}
+
+set_revision_1() {
+  sed -i "s/^revision=.*/revision=1/" "$template"
+}
+
+emit_new_version() {
+  echo "NEW_VERSION=$1" >> "$GITHUB_ENV"
+}
+
+echo "=== [$pkg] strategy: $strategy ==="
+
+case "$strategy" in
+
+  # ============ FONT (repo solocco/my-fonts, asset TTF + NerdFont) ============
+  font)
+    font_name=$(echo "$PKG_JSON" | jq -r '.font')
+    src_repo="solocco/my-fonts"
+
+    latest_ver=$(gh_api "repos/${src_repo}/releases" | \
+      jq -r --arg p "${font_name}-v" '[.[] | select(.tag_name | startswith($p))] | .[0].tag_name // empty' | \
+      sed "s/${font_name}-v//")
+    cur_ver=$(current_version)
+    echo "Current: $cur_ver | Latest: $latest_ver"
+
+    if [ -z "$latest_ver" ]; then
+      echo "Tidak bisa dapat versi terbaru, skip"
+      exit 0
+    fi
+    if [ "$latest_ver" = "$cur_ver" ]; then
+      echo "Sudah up to date"
+      exit 0
+    fi
+
+    base="https://github.com/${src_repo}/releases/download/${font_name}-v${latest_ver}"
+    wget -q "${base}/${font_name}-TTF.tar.xz"      -O /tmp/ttf.tar.xz
+    wget -q "${base}/${font_name}-NerdFont.tar.xz" -O /tmp/nerd.tar.xz
+    cs1=$(sha256sum /tmp/ttf.tar.xz  | cut -d' ' -f1)
+    cs2=$(sha256sum /tmp/nerd.tar.xz | cut -d' ' -f1)
+    rm -f /tmp/ttf.tar.xz /tmp/nerd.tar.xz
+
+    set_version "$latest_ver"
+    python3 - "$template" "$cs1" "$cs2" <<'PYEOF'
+import sys, re
+path, cs1, cs2 = sys.argv[1:]
+with open(path) as f:
+    content = f.read()
+new_checksum = f'checksum="{cs1}\n {cs2}"'
+content = re.sub(r'checksum="[^"]*"', new_checksum, content, flags=re.DOTALL)
+with open(path, 'w') as f:
+    f.write(content)
+PYEOF
+    echo "Template updated ke $latest_ver"
+    emit_new_version "$latest_ver"
+    ;;
+
+  # ============ SOURCE TARBALL (archive/refs/tags/<tag>.tar.gz) ============
+  source-tarball)
+    dash_strip=$(echo "$PKG_JSON" | jq -r '.dash_strip // false')
+    set_tag_var=$(echo "$PKG_JSON" | jq -r '.set_tag_var // false')
+    reset_rev=$(echo "$PKG_JSON" | jq -r '.reset_revision // true')
+    fallback_tags=$(echo "$PKG_JSON" | jq -r '.fallback_tags // false')
+
+    latest_tag=$(gh_api "repos/${repo}/releases/latest" | jq -r '.tag_name // empty')
+    if [ -z "$latest_tag" ] && [ "$fallback_tags" = "true" ]; then
+      latest_tag=$(gh_api "repos/${repo}/tags" | jq -r '.[0].name // empty')
+    fi
+    if [ -z "$latest_tag" ]; then
+      echo "Gagal ambil tag terbaru, skip"
+      exit 0
+    fi
+
+    latest_ver="${latest_tag#v}"
+    if [ "$dash_strip" = "true" ]; then
+      latest_ver=$(echo "$latest_ver" | tr -d '-')
+    fi
+
+    cur_ver=$(current_version)
+    echo "Current: $cur_ver | Latest: $latest_ver (tag $latest_tag)"
+
+    if [ "$latest_ver" = "$cur_ver" ]; then
+      echo "Sudah up to date"
+      exit 0
+    fi
+
+    tarball_url="https://github.com/${repo}/archive/refs/tags/${latest_tag}.tar.gz"
+    tmpfile=$(mktemp)
+    curl -fsSL -o "$tmpfile" "$tarball_url"
+    new_checksum=$(sha256sum "$tmpfile" | cut -d' ' -f1)
+    rm -f "$tmpfile"
+
+    set_version "$latest_ver"
+    [ "$reset_rev" = "true" ] && set_revision_1
+    if [ "$set_tag_var" = "true" ]; then
+      sed -i "s/^_tag=.*/_tag=\"${latest_tag}\"/" "$template"
+    fi
+    sed -i "s/^checksum=.*/checksum=${new_checksum}/" "$template"
+
+    echo "Template updated ke $latest_ver"
+    emit_new_version "$latest_ver"
+    ;;
+
+  # ============ BINARY ASSET (1 asset prebuilt, download + hash) ============
+  binary-asset)
+    asset_template=$(echo "$PKG_JSON" | jq -r '.asset')
+    url_v_prefix=$(echo "$PKG_JSON" | jq -r '.url_v_prefix // false')
+    quoted=$(echo "$PKG_JSON" | jq -r '.quoted_checksum // true')
+
+    latest_tag=$(gh_api "repos/${repo}/releases/latest" | jq -r '.tag_name // empty')
+    if [ -z "$latest_tag" ]; then
+      echo "Gagal ambil versi terbaru, skip"
+      exit 0
+    fi
+    latest_ver="${latest_tag#v}"
+    cur_ver=$(current_version)
+    echo "Current: $cur_ver | Latest: $latest_ver"
+
+    if [ "$latest_ver" = "$cur_ver" ]; then
+      echo "Sudah up to date"
+      exit 0
+    fi
+
+    asset_name="${asset_template//\{version\}/$latest_ver}"
+    if [ "$url_v_prefix" = "true" ]; then
+      dl_path="v${latest_ver}"
+    else
+      dl_path="${latest_ver}"
+    fi
+    download_url="https://github.com/${repo}/releases/download/${dl_path}/${asset_name}"
+
+    echo "Fetching checksum from: $download_url"
+    checksum=$(curl -fL --retry 3 --retry-delay 2 -s "$download_url" | sha256sum | cut -d' ' -f1)
+    if [ -z "$checksum" ]; then
+      echo "Error: gagal hitung checksum."
+      exit 1
+    fi
+
+    set_version "$latest_ver"
+    set_revision_1
+    if [ "$quoted" = "true" ]; then
+      sed -i "s/^checksum=.*/checksum=\"$checksum\"/" "$template"
+    else
+      sed -i "s/^checksum=.*/checksum=$checksum/" "$template"
+    fi
+
+    echo "Template updated ke $latest_ver"
+    emit_new_version "$latest_ver"
+    ;;
+
+  # ============ BRAVE ORIGIN (cari release yg punya asset .rpm x86_64) ============
+  brave)
+    src_repo="brave/brave-browser"
+    latest_ver=$(gh_api "repos/${src_repo}/releases?per_page=50" | \
+      jq -r '[.[] | select(.prerelease == false) | select(any(.assets[]; .name | test("^brave-origin-[0-9].*x86_64\\.rpm$")))] | first | .tag_name' | \
+      sed 's/^v//')
+    if [ -z "$latest_ver" ] || [ "$latest_ver" = "null" ]; then
+      echo "Error: gagal ambil versi terbaru."
+      exit 1
+    fi
+    cur_ver=$(current_version)
+    echo "Current: $cur_ver | Latest: $latest_ver"
+
+    if [ "$latest_ver" = "$cur_ver" ]; then
+      echo "Sudah up to date"
+      exit 0
+    fi
+
+    url=$(gh_api "repos/${src_repo}/releases?per_page=50" | \
+      jq -r --arg v "v${latest_ver}" '[.[] | select(.tag_name == $v)] | first | .assets[] | select(.name | test("^brave-origin-[0-9].*x86_64\\.rpm$")) | .browser_download_url')
+    if [ -z "$url" ]; then
+      echo "Error: RPM asset tidak ketemu di release v${latest_ver}."
+      exit 1
+    fi
+
+    checksum=$(curl -fL --retry 3 --retry-delay 2 -s "$url" | sha256sum | cut -d' ' -f1)
+    if [ -z "$checksum" ]; then
+      echo "Error: gagal hitung checksum."
+      exit 1
+    fi
+
+    set_version "$latest_ver"
+    set_revision_1
+    sed -i "s/^checksum=.*/checksum=\"$checksum\"/" "$template"
+
+    echo "Template updated ke $latest_ver"
+    emit_new_version "$latest_ver"
+    ;;
+
+  # ============ GOOGLE CHROME (chromiumdash API, bukan GitHub) ============
+  chrome)
+    latest_ver=$(curl -s "https://chromiumdash.appspot.com/fetch_releases?channel=Stable&platform=Linux&num=1" | \
+      grep -oP '"version":"\K[^"]+' | head -1)
+    if [ -z "$latest_ver" ]; then
+      echo "Error: gagal ambil versi terbaru."
+      exit 1
+    fi
+    cur_ver=$(current_version)
+    echo "Current: $cur_ver | Latest: $latest_ver"
+
+    if [ "$latest_ver" = "$cur_ver" ]; then
+      echo "Sudah up to date"
+      exit 0
+    fi
+
+    deb_url="https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_${latest_ver}-1_amd64.deb"
+    checksum=$(curl -L -s "$deb_url" | sha256sum | cut -d' ' -f1)
+    if [ -z "$checksum" ]; then
+      echo "Error: gagal hitung checksum."
+      exit 1
+    fi
+
+    set_version "$latest_ver"
+    set_revision_1
+    sed -i "s/^checksum=.*/checksum=$checksum/" "$template"
+
+    echo "Template updated ke $latest_ver"
+    emit_new_version "$latest_ver"
+    ;;
+
+  *)
+    echo "Strategy tidak dikenal: $strategy"
+    exit 1
+    ;;
+esac

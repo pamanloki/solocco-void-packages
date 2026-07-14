@@ -20,17 +20,17 @@ jobs:
 
       - name: Build matrix from packages.json
         id: set
-        run: echo "packages=$(jq -c '[.packages[].package]' packages.json)" >> "$GITHUB_OUTPUT"
+        run: echo "packages=$(jq -c '.packages' packages.json)" >> "$GITHUB_OUTPUT"
 
   update:
-    name: Check ${{ matrix.package }} updates
+    name: Check ${{ matrix.pkg.package }} updates
     needs: load-matrix
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 1
       fail-fast: false
       matrix:
-        package: ${{ fromJson(needs.load-matrix.outputs.packages) }}
+        pkg: ${{ fromJson(needs.load-matrix.outputs.packages) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,12 +48,11 @@ jobs:
           git config --global user.email "${{ secrets.SIGNING_EMAIL }}"
 
       - name: Run update script
-        id: update
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          chmod +x "scripts/update-${{ matrix.package }}.sh"
-          "./scripts/update-${{ matrix.package }}.sh"
+          chmod +x scripts/update.sh
+          ./scripts/update.sh '${{ toJson(matrix.pkg) }}'
 
       - name: Pull latest changes
         if: env.NEW_VERSION != ''
@@ -68,6 +67,6 @@ jobs:
         with:
           author_name: solocco
           author_email: ${{ secrets.SIGNING_EMAIL }}
-          message: "Update ${{ matrix.package }} to ${{ env.NEW_VERSION }}"
-          add: "srcpkgs/${{ matrix.package }}/template"
+          message: "Update ${{ matrix.pkg.package }} to ${{ env.NEW_VERSION }}"
+          add: "srcpkgs/${{ matrix.pkg.package }}/template"
           github_token: ${{ secrets.PAT_TOKEN }}

@@ -30,10 +30,10 @@ jobs:
       - name: Generate matrix and pkg list
         id: set
         run: |
-          matrix=$(jq -c '{include: .packages}' packages.json)
+          matrix=$(jq -c '{include: [.packages[] | select(.build != false)]}' packages.json)
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
-          pkg_list=$(jq -r '.packages[].package' packages.json | tr '\n' ' ')
+          pkg_list=$(jq -r '[.packages[] | select(.build != false)] | .[].package' packages.json | tr '\n' ' ')
           echo "pkg_list=$pkg_list" >> "$GITHUB_OUTPUT"
 
   build:
