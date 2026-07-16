@@ -204,7 +204,13 @@ jobs:
         run: |
           cd /tmp/repo
           for pkg in $PKG_LIST; do
-            ls -t ${pkg}-*.xbps 2>/dev/null | tail -n +2 | xargs -r rm -f
+            # FIX: sort by version (-V), not by mtime (-t).
+            # `ls -t` picked the "newest by file timestamp", which is unreliable
+            # when the downloaded (old) and copied-in (new) files get mtimes
+            # within the same second on a fast CI runner — this caused the
+            # wrong (older) version to survive cleanup while the newer one
+            # got deleted, so the index kept pointing at a stale version.
+            ls ${pkg}-*.xbps 2>/dev/null | sort -Vr | tail -n +2 | xargs -r rm -f
           done
 
       - name: Sign and index
