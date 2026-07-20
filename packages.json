@@ -1,127 +1,276 @@
-{
-  "packages": [
-    {
-      "package": "zen-browser-bin",
-      "restricted": false,
-      "build": true,
-      "strategy": "binary-asset",
-      "repo": "zen-browser/desktop",
-      "asset": "zen.linux-x86_64.tar.xz",
-      "quoted_checksum": true,
-      "url_v_prefix": false
-    },
-    {
-      "package": "google-chrome-bin",
-      "restricted": true,
-      "build": true,
-      "strategy": "chrome"
-    },
-    {
-      "package": "helium-browser-bin",
-      "restricted": false,
-      "build": true,
-      "strategy": "binary-asset",
-      "repo": "imputnet/helium-linux",
-      "asset": "helium-{version}-x86_64_linux.tar.xz",
-      "quoted_checksum": true,
-      "url_v_prefix": false
-    },
-    {
-      "package": "brave-origin",
-      "restricted": true,
-      "build": true,
-      "strategy": "brave"
-    },
-    {
-      "package": "driftwm",
-      "restricted": false,
-      "build": true,
-      "strategy": "source-tarball",
-      "repo": "malbiruk/driftwm",
-      "fallback_tags": true,
-      "reset_revision": false
-    },
-    {
-      "package": "superfile",
-      "restricted": false,
-      "build": false,
-      "strategy": "source-tarball",
-      "repo": "yorukot/superfile"
-    },
-    {
-      "package": "nushell",
-      "restricted": false,
-      "build": true,
-      "strategy": "source-tarball",
-      "repo": "nushell/nushell"
-    },
-    {
-      "package": "noctalia",
-      "restricted": false,
-      "build": false,
-      "strategy": "source-tarball",
-      "repo": "noctalia-dev/noctalia",
-      "dash_strip": true,
-      "set_tag_var": true
-    },
-    {
-      "package": "yazi-bin",
-      "restricted": false,
-      "build": true,
-      "strategy": "binary-asset",
-      "repo": "sxyazi/yazi",
-      "asset": "yazi-x86_64-unknown-linux-gnu.zip",
-      "quoted_checksum": false,
-      "url_v_prefix": true
-    },
-    {
-      "package": "iosevkaku-bin",
-      "restricted": false,
-      "build": true,
-      "strategy": "font",
-      "font": "Iosevka"
-    },
-    {
-      "package": "ioskeley-bin",
-      "restricted": false,
-      "build": false,
-      "strategy": "font",
-      "font": "IoskeleyMono"
-    },
-    {
-      "package": "cidmono-bin",
-      "restricted": false,
-      "build": false,
-      "strategy": "font",
-      "font": "CidMono"
-    },
-    {
-      "package": "piemono-bin",
-      "restricted": false,
-      "build": false,
-      "strategy": "font",
-      "font": "PieMono"
-    },
-    {
-      "package": "mayucode-bin",
-      "restricted": false,
-      "build": true,
-      "strategy": "font",
-      "font": "MayuCode"
-    },
-    {
-      "package": "mayulite-bin",
-      "restricted": false,
-      "build": false,
-      "strategy": "font",
-      "font": "Mayulite"
-    },
-    {
-      "package": "runesevka-bin",
-      "restricted": false,
-      "build": true,
-      "strategy": "font",
-      "font": "Runesevka"
-    }
-  ]
-}
+name: Build Packages
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'srcpkgs/**'
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to build (lihat packages.json untuk daftar lengkap / "all")'
+        required: false
+        default: 'all'
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  setup:
+    name: Load package list
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+      pkg_list: ${{ steps.set.outputs.pkg_list }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Generate matrix and pkg list
+        id: set
+        run: |
+          matrix=$(jq -c '{include: [.packages[] | select(.build != false)]}' packages.json)
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+          pkg_list=$(jq -r '[.packages[] | select(.build != false)] | .[].package' packages.json | tr '\n' ' ')
+          echo "pkg_list=$pkg_list" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.package }}
+    needs: setup
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
+
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/void-linux/void-glibc-full
+      options: --privileged
+      volumes:
+        - /dev:/dev
+      env:
+        ARCH: x86_64
+        BOOTSTRAP: x86_64
+        TEST: 0
+
+    steps:
+      - name: Check if this package should be built
+        id: filter
+        shell: sh
+        run: |
+          PKG="${{ matrix.package }}"
+          EVENT="${{ github.event_name }}"
+          INPUT="${{ github.event.inputs.package }}"
+          MSG="${{ github.event.head_commit.message }}"
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            if [ "$INPUT" = "$PKG" ] || [ "$INPUT" = "all" ]; then
+              echo "run=true" >> $GITHUB_OUTPUT
+            else
+              echo "run=false" >> $GITHUB_OUTPUT
+            fi
+          elif [ "$EVENT" = "push" ]; then
+            if echo "$MSG" | grep -qF "$PKG"; then
+              echo "run=true" >> $GITHUB_OUTPUT
+            else
+              echo "run=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "run=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Prepare container
+        if: steps.filter.outputs.run == 'true'
+        run: |
+          mkdir -p /etc/xbps.d && cp /usr/share/xbps.d/*-repository-*.conf /etc/xbps.d/
+          sed -i 's|repo-default|repo-ci|g' /etc/xbps.d/*-repository-*.conf
+          xbps-install -Syu xbps && xbps-install -yu && xbps-install -y sudo bash curl git
+          curl -fsSL https://github.com/cli/cli/releases/download/v2.67.0/gh_2.67.0_linux_amd64.tar.gz | tar -xz -C /tmp
+          install -m755 /tmp/gh_2.67.0_linux_amd64/bin/gh /usr/local/bin/gh
+          useradd -G xbuilder -M builder
+          echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
+
+      - name: Checkout repo
+        if: steps.filter.outputs.run == 'true'
+        uses: actions/checkout@v4
+        with:
+          path: main-repo
+
+      - name: Checkout void-packages
+        if: steps.filter.outputs.run == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: void-linux/void-packages
+          path: void-packages
+
+      - name: Merge template
+        if: steps.filter.outputs.run == 'true'
+        run: |
+          cp -rv main-repo/srcpkgs/${{ matrix.package }} void-packages/srcpkgs/
+          chown -R builder:builder void-packages
+
+      - name: Prepare masterdir
+        if: steps.filter.outputs.run == 'true'
+        run: |
+          cd void-packages
+          sudo -Eu builder common/travis/set_mirror.sh
+          sudo -Eu builder common/travis/prepare.sh
+          common/travis/fetch-xtools.sh
+
+      - name: Enable restricted packages
+        if: steps.filter.outputs.run == 'true' && matrix.restricted == true
+        run: |
+          mkdir -p void-packages/common/conf
+          echo "XBPS_ALLOW_RESTRICTED=yes" | sudo tee -a void-packages/common/conf/make.conf
+
+      - name: Build ${{ matrix.package }}
+        if: steps.filter.outputs.run == 'true'
+        run: |
+          export PATH="/opt/xbps/usr/bin/:$PATH"
+          cd void-packages
+          sudo -Eu builder ./xbps-src -j$(nproc) pkg ${{ matrix.package }}
+
+      - name: Upload build artifacts
+        if: steps.filter.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pkgs-${{ matrix.package }}
+          path: |
+            void-packages/hostdir/binpkgs/**/*.xbps
+            void-packages/hostdir/binpkgs/**/*.xbps.sig2
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish repo
+    needs: [setup, build]
+    if: always() && needs.build.result != 'skipped'
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/void-linux/void-glibc-full
+      options: --privileged
+      volumes:
+        - /dev:/dev
+    env:
+      PKG_LIST: ${{ needs.setup.outputs.pkg_list }}
+
+    steps:
+      - name: Prepare container
+        run: |
+          mkdir -p /etc/xbps.d && cp /usr/share/xbps.d/*-repository-*.conf /etc/xbps.d/
+          sed -i 's|repo-default|repo-ci|g' /etc/xbps.d/*-repository-*.conf
+          xbps-install -Syu xbps && xbps-install -yu && xbps-install -y curl
+          curl -fsSL https://github.com/cli/cli/releases/download/v2.67.0/gh_2.67.0_linux_amd64.tar.gz | tar -xz -C /tmp
+          install -m755 /tmp/gh_2.67.0_linux_amd64/bin/gh /usr/local/bin/gh
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pkgs-*
+          path: /tmp/new-pkgs
+          merge-multiple: true
+
+      - name: Check if any packages were built
+        id: check
+        run: |
+          if find /tmp/new-pkgs -name "*.xbps" 2>/dev/null | grep -q .; then
+            echo "has_pkgs=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_pkgs=false" >> $GITHUB_OUTPUT
+            echo "No new packages built, nothing to publish."
+          fi
+
+      - name: Download existing repo from release
+        if: steps.check.outputs.has_pkgs == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p /tmp/repo
+          gh release download repo-latest \
+            --repo ${{ github.repository }} \
+            --dir /tmp/repo \
+            --pattern "*.xbps" \
+            --pattern "x86_64-repodata" || echo "No existing release found, starting fresh"
+
+      - name: Merge new packages into repo
+        if: steps.check.outputs.has_pkgs == 'true'
+        run: |
+          find /tmp/new-pkgs -name "*.xbps" -exec cp -f {} /tmp/repo/ \;
+
+      - name: Cleanup old versions from local repo dir
+        if: steps.check.outputs.has_pkgs == 'true'
+        run: |
+          cd /tmp/repo
+          for pkg in $PKG_LIST; do
+            # FIX: sort by version (-V), not by mtime (-t).
+            # `ls -t` picked the "newest by file timestamp", which is unreliable
+            # when the downloaded (old) and copied-in (new) files get mtimes
+            # within the same second on a fast CI runner — this caused the
+            # wrong (older) version to survive cleanup while the newer one
+            # got deleted, so the index kept pointing at a stale version.
+            #
+            # FIX 2: anchor pattern to "-<digit>" right after pkg name.
+            # Plain `${pkg}-*.xbps` is a prefix match, so pkg="runesevka"
+            # would also glob "runesevka-bin-1.2.3.xbps" and mix two
+            # different packages into the same version sort/cleanup.
+            ls ${pkg}-[0-9]*.xbps 2>/dev/null | sort -Vr | tail -n +2 | xargs -r rm -f
+          done
+
+      - name: Sign and index
+        if: steps.check.outputs.has_pkgs == 'true'
+        env:
+          PRIV_KEY: ${{ secrets.PRIV_KEY }}
+        run: |
+          export PATH="/opt/xbps/usr/bin/:$PATH"
+          cd /tmp/repo
+          rm -f x86_64-repodata *.xbps.sig2
+          trap 'rm -f private.pem' EXIT
+          echo "$PRIV_KEY" > private.pem
+          xbps-rindex -a *.xbps
+          xbps-rindex -s --signedby "solocco" --privkey private.pem $PWD
+          xbps-rindex -S --privkey private.pem *.xbps
+
+      - name: Ensure release exists
+        if: steps.check.outputs.has_pkgs == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create repo-latest \
+            --repo ${{ github.repository }} \
+            --title "solocco-void-packages" \
+            --notes "Permanent repository release. Files are updated automatically on each build." \
+            --latest 2>/dev/null || true
+
+      - name: Delete old package assets from release
+        if: steps.check.outputs.has_pkgs == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for pkg in $PKG_LIST; do
+            # FIX: anchor to "-<digit>" so pkg="runesevka" doesn't also
+            # match/delete assets belonging to "runesevka-bin".
+            gh release view repo-latest \
+              --repo ${{ github.repository }} \
+              --json assets \
+              --jq ".assets[].name" 2>/dev/null \
+            | grep "^${pkg}-[0-9].*\.xbps" \
+            | while read -r asset; do
+                echo "Deleting old asset: $asset"
+                gh release delete-asset repo-latest "$asset" \
+                  --repo ${{ github.repository }} -y || true
+              done
+          done
+
+      - name: Upload to permanent release
+        if: steps.check.outputs.has_pkgs == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for f in /tmp/repo/*; do
+            gh release upload repo-latest \
+              --repo ${{ github.repository }} \
+              --clobber \
+              "$f" || true
+          done
