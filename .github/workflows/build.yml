@@ -210,7 +210,12 @@ jobs:
             # within the same second on a fast CI runner — this caused the
             # wrong (older) version to survive cleanup while the newer one
             # got deleted, so the index kept pointing at a stale version.
-            ls ${pkg}-*.xbps 2>/dev/null | sort -Vr | tail -n +2 | xargs -r rm -f
+            #
+            # FIX 2: anchor pattern to "-<digit>" right after pkg name.
+            # Plain `${pkg}-*.xbps` is a prefix match, so pkg="runesevka"
+            # would also glob "runesevka-bin-1.2.3.xbps" and mix two
+            # different packages into the same version sort/cleanup.
+            ls ${pkg}-[0-9]*.xbps 2>/dev/null | sort -Vr | tail -n +2 | xargs -r rm -f
           done
 
       - name: Sign and index
@@ -244,11 +249,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           for pkg in $PKG_LIST; do
+            # FIX: anchor to "-<digit>" so pkg="runesevka" doesn't also
+            # match/delete assets belonging to "runesevka-bin".
             gh release view repo-latest \
               --repo ${{ github.repository }} \
               --json assets \
               --jq ".assets[].name" 2>/dev/null \
-            | grep "^${pkg}-.*\.xbps" \
+            | grep "^${pkg}-[0-9].*\.xbps" \
             | while read -r asset; do
                 echo "Deleting old asset: $asset"
                 gh release delete-asset repo-latest "$asset" \
