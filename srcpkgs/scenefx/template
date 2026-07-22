@@ -1,0 +1,24 @@
+# Template file for 'scenefx'
+pkgname=scenefx
+version=0.5
+revision=1
+build_style=meson
+hostmakedepends="pkg-config glslang"
+makedepends="wlroots0.20-devel libdrm-devel pixman-devel MesaLib-devel wayland-devel wayland-protocols"
+short_desc="Drop-in replacement for the wlroots scene API with eye-candy effects"
+maintainer="Emil Miler <em@0x45.cz>"
+license="MIT"
+homepage="https://github.com/wlrfx/scenefx"
+changelog="https://github.com/wlrfx/scenefx/releases"
+distfiles="https://github.com/wlrfx/scenefx/archive/refs/tags/${version}.tar.gz"
+checksum=0fa8ecca0e310f813efd052624c5ed7d9153d6a0fdead5cc957d34c07f9a86c6
+
+scenefx-devel_package() {
+	depends="wlroots0.20-devel ${sourcepkg}>=${version}_${revision}"
+	short_desc+=" - development files"
+	pkg_install() {
+		vmove usr/include
+		vmove usr/lib/pkgconfig
+		vmove "usr/lib/*.so"
+	}
+}

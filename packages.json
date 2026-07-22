@@ -124,9 +124,16 @@
       "font": "Runesevka"
     },
     {
+      "package": "scenefx",
+      "restricted": false,
+      "build": true,
+      "strategy": "source-tarball",
+      "repo": "wlrfx/scenefx"
+    },
+    {
       "package": "mangowm",
       "restricted": false,
-      "build": false,
+      "build": true,
       "strategy": "source-tarball",
       "repo": "mangowm/mango"
     }
