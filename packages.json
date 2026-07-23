@@ -119,7 +119,7 @@
     {
       "package": "runesevka-bin",
       "restricted": false,
-      "build": true,
+      "build": false,
       "strategy": "font",
       "font": "Runesevka"
     },
