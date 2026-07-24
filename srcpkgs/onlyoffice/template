@@ -1,0 +1,45 @@
+# Template file for 'onlyoffice'
+pkgname=onlyoffice
+version=9.4.0
+revision=1
+archs="x86_64*"
+depends="gtk+3 nss alsa-lib mesa libcups dbus-glib"
+shlib_provides="virtodbc_r.so"
+short_desc="Free office suite for documents, spreadsheets, and presentations"
+maintainer="Pharacox <you@example.com>"
+license="AGPL-3.0-only"
+homepage="https://www.onlyoffice.com/desktop.aspx"
+restricted=yes
+repository=nonfree
+nopie=yes
+nostrip=yes
+distfiles="https://github.com/ONLYOFFICE/DesktopEditors/releases/download/v${version}/DesktopEditors-x86_64.AppImage"
+checksum="f5faf24552665262fe94486a510b997d2e5a24bde14df94c802c79bf17f9254c"
+skip_extraction="DesktopEditors-x86_64.AppImage"
+do_extract() {
+	mkdir -p "${wrksrc}"
+	cd "${wrksrc}"
+	cp "${XBPS_SRCDISTDIR}/${pkgname}-${version}/DesktopEditors-x86_64.AppImage" ./onlyoffice.AppImage
+	chmod +x ./onlyoffice.AppImage
+	./onlyoffice.AppImage --appimage-extract >/dev/null
+	rm -f ./onlyoffice.AppImage
+}
+do_install() {
+	vmkdir usr/lib/onlyoffice
+	cp -a squashfs-root/* "${DESTDIR}/usr/lib/onlyoffice/"
+	vmkdir usr/bin
+	cat > "${DESTDIR}/usr/bin/${pkgname}" <<-EOF
+	#!/bin/sh
+	exec /usr/lib/onlyoffice/AppRun "\$@"
+	EOF
+	chmod 755 "${DESTDIR}/usr/bin/${pkgname}"
+	vmkdir usr/share/applications
+	desktop_file=$(find squashfs-root -maxdepth 1 -name '*.desktop' | head -n1)
+	sed -e "s|Exec=.*|Exec=${pkgname} %U|" \
+	    -e "s|Icon=.*|Icon=${pkgname}|" \
+	    "${desktop_file}" > "${DESTDIR}/usr/share/applications/${pkgname}.desktop"
+	vmkdir usr/share/icons/hicolor/256x256/apps
+	icon_file=$(find squashfs-root -maxdepth 1 -name '*.png' | head -n1)
+	[ -n "${icon_file}" ] && cp "${icon_file}" \
+		"${DESTDIR}/usr/share/icons/hicolor/256x256/apps/${pkgname}.png"
+}

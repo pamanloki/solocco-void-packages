@@ -136,6 +136,22 @@
       "build": false,
       "strategy": "source-tarball",
       "repo": "mangowm/mango"
+    },
+    {
+      "package": "onlyoffice",
+      "restricted": true,
+      "build": true,
+      "strategy": "binary-asset",
+      "repo": "ONLYOFFICE/DesktopEditors",
+      "asset": "DesktopEditors-x86_64.AppImage",
+      "quoted_checksum": true,
+      "url_v_prefix": true
+    },
+    {
+      "package": "msttcorefonts",
+      "restricted": true,
+      "build": false,
+      "strategy": "static"
     }
   ]
 }

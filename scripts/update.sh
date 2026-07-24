@@ -246,6 +246,12 @@ PYEOF
     emit_new_version "$latest_ver"
     ;;
 
+  # ============ STATIC (no upstream versioning, manual-only package) ============
+  static)
+    echo "Package static (no version tracking), skip."
+    exit 0
+    ;;
+
   *)
     echo "Strategy tidak dikenal: $strategy"
     exit 1
