@@ -150,7 +150,7 @@
     {
       "package": "msttcorefonts",
       "restricted": true,
-      "build": false,
+      "build": true,
       "strategy": "static"
     }
   ]
