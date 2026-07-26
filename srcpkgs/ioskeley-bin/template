@@ -1,5 +1,5 @@
 pkgname=ioskeley-bin
-version=34.7.0
+version=34.8.0
 revision=1
 depends="font-util"
 short_desc="IoskeleyMono TTF and Nerd Font"
@@ -8,8 +8,8 @@ license="OFL-1.1"
 homepage="https://github.com/solocco/my-fonts"
 distfiles="https://github.com/solocco/my-fonts/releases/download/IoskeleyMono-v${version}/IoskeleyMono-TTF.tar.xz
  https://github.com/solocco/my-fonts/releases/download/IoskeleyMono-v${version}/IoskeleyMono-NerdFont.tar.xz"
-checksum="cca090d8ca2bfd053791facb241e0b1a47f628e95eff5c5f839804d4b9f41de9
- e903a08a8cbe3b521d65411a1cf05cdd9154dcb8ecfe678fb38cb64663e60222"
+checksum="183ac08465d7d0dd87576cb65b2ae91b61ed02aaa7a36005fcaee781aa43933d
+ 5dc58841012435b5277d5d1c2bb73dfaeb11489eb1391f5c98098872b5c5eec9"
 font_dirs="/usr/share/fonts/TTF"
 provides="font:monospace-0_1"
  
