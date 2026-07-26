@@ -27,7 +27,7 @@
       "url_v_prefix": false
     },
     {
-      "package": "brave-origin",
+      "package": "brave-origin-bin",
       "restricted": true,
       "build": true,
       "strategy": "brave"

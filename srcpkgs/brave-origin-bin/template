@@ -1,6 +1,6 @@
-# Template file for 'brave-browser'
+# Template file for 'brave-origin-bin'
 # Repackages the official rpm package.
-pkgname=brave-origin
+pkgname=brave-origin-bin
 version=1.92.144
 revision=1
 archs="x86_64"
