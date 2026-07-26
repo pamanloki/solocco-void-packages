@@ -1,5 +1,5 @@
 pkgname=cidmono-bin
-version=34.7.0
+version=34.8.0
 revision=1
 depends="font-util"
 short_desc="CidMono TTF and Nerd Font"
@@ -8,8 +8,8 @@ license="OFL-1.1"
 homepage="https://github.com/solocco/my-fonts"
 distfiles="https://github.com/solocco/my-fonts/releases/download/CidMono-v${version}/CidMono-TTF.tar.xz
  https://github.com/solocco/my-fonts/releases/download/CidMono-v${version}/CidMono-NerdFont.tar.xz"
-checksum="b62c2b2e0b5ad59698f2481da56ac8c552d1839d4762b1317e1198651cdf6c95
- 789fa1f9447cb091c1e416c42a7ea2c1243a7ca406bd56f5f3487609ea42d294"
+checksum="1f125f1a1904ee14bf7613e974723e216cba464046affc2006fa8064dc1fd504
+ 13feaafdb74f8a7e9f3ee5b728d9fd477888e076d6a484b536a6eb182e4f6a66"
 font_dirs="/usr/share/fonts/TTF"
 provides="font:monospace-0_1"
  
