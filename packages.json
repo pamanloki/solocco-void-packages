@@ -3,7 +3,7 @@
     {
       "package": "zen-browser-bin",
       "restricted": false,
-      "build": true,
+      "build": false,
       "strategy": "binary-asset",
       "repo": "zen-browser/desktop",
       "asset": "zen.linux-x86_64.tar.xz",
@@ -19,7 +19,7 @@
     {
       "package": "helium-browser-bin",
       "restricted": false,
-      "build": true,
+      "build": false,
       "strategy": "binary-asset",
       "repo": "imputnet/helium-linux",
       "asset": "helium-{version}-x86_64_linux.tar.xz",
@@ -35,7 +35,7 @@
     {
       "package": "driftwm",
       "restricted": false,
-      "build": true,
+      "build": false,
       "strategy": "source-tarball",
       "repo": "malbiruk/driftwm",
       "fallback_tags": true,
@@ -119,7 +119,7 @@
     {
       "package": "runesevka-bin",
       "restricted": false,
-      "build": false,
+      "build": true,
       "strategy": "font",
       "font": "Runesevka"
     },
@@ -140,7 +140,7 @@
     {
       "package": "onlyoffice",
       "restricted": true,
-      "build": true,
+      "build": false,
       "strategy": "binary-asset",
       "repo": "ONLYOFFICE/DesktopEditors",
       "asset": "DesktopEditors-x86_64.AppImage",
@@ -150,7 +150,7 @@
     {
       "package": "msttcorefonts",
       "restricted": true,
-      "build": true,
+      "build": false,
       "strategy": "static"
     }
   ]
