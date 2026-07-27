@@ -1,0 +1,19 @@
+pkgname=mayuri-bin
+version=34.8.0
+revision=1
+depends="font-util"
+short_desc="Mayuri TTF and Nerd Font"
+maintainer="solocco"
+license="OFL-1.1"
+homepage="https://github.com/solocco/my-fonts"
+distfiles="https://github.com/solocco/my-fonts/releases/download/Mayuri-v${version}/Mayuri-TTF.tar.xz
+ https://github.com/solocco/my-fonts/releases/download/Mayuri-v${version}/Mayuri-NerdFont.tar.xz"
+checksum="3e131a41ff30b937484549bf7a56b9eb46bac825847ff1eb436eb00157f2c584
+ 4e0a981a52390526a1307c53ddd2f26f15e544ab34b705c4f2b981fd9dac5b56"
+font_dirs="/usr/share/fonts/TTF"
+provides="font:monospace-0_1"
+ 
+do_install() {
+    vmkdir usr/share/fonts/TTF
+    vcopy *.ttf usr/share/fonts/TTF
+}

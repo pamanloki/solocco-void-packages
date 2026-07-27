@@ -105,7 +105,7 @@
     {
       "package": "mayucode-bin",
       "restricted": false,
-      "build": true,
+      "build": false,
       "strategy": "font",
       "font": "MayuCode"
     },
@@ -152,6 +152,13 @@
       "restricted": true,
       "build": false,
       "strategy": "static"
+    },
+    {
+      "package": "mayuri-bin",
+      "restricted": false,
+      "build": true,
+      "strategy": "font",
+      "font": "Mayuri"
     }
   ]
 }
