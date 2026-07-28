@@ -35,7 +35,7 @@
     {
       "package": "driftwm",
       "restricted": false,
-      "build": false,
+      "build": true,
       "strategy": "source-tarball",
       "repo": "malbiruk/driftwm",
       "fallback_tags": true,
@@ -163,7 +163,7 @@
     {
       "package": "mayuson-bin",
       "restricted": false,
-      "build": true,
+      "build": false,
       "strategy": "font",
       "font": "Mayuson"
     }
