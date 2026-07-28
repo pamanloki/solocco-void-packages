@@ -1,0 +1,19 @@
+pkgname=mayuson-bin
+version=34.8.0
+revision=1
+depends="font-util"
+short_desc="Mayuson TTF and Nerd Font"
+maintainer="solocco"
+license="OFL-1.1"
+homepage="https://github.com/solocco/my-fonts"
+distfiles="https://github.com/solocco/my-fonts/releases/download/Mayuson-v${version}/Mayuson-TTF.tar.xz
+ https://github.com/solocco/my-fonts/releases/download/Mayuson-v${version}/Mayuson-NerdFont.tar.xz"
+checksum="77cf12fe190779e10ffd692996d2c6d0e771a59d9e08b1a3af23e06bc57c3a7b
+ d05e56fc99a5a4f494d01347e78bde527060de199c2d294e514fd0045b230466"
+font_dirs="/usr/share/fonts/TTF"
+provides="font:monospace-0_1"
+ 
+do_install() {
+    vmkdir usr/share/fonts/TTF
+    vcopy *.ttf usr/share/fonts/TTF
+}

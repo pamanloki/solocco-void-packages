@@ -156,9 +156,16 @@
     {
       "package": "mayuri-bin",
       "restricted": false,
-      "build": true,
+      "build": false,
       "strategy": "font",
       "font": "Mayuri"
+    },
+    {
+      "package": "mayuson-bin",
+      "restricted": false,
+      "build": true,
+      "strategy": "font",
+      "font": "Mayuson"
     }
   ]
 }
