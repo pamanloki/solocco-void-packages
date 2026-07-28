@@ -1,8 +1,8 @@
 # Template file for 'noctalia'
 pkgname=noctalia
-version=5.0.0beta.5
+version=5.0.0beta.6
 revision=1
-_tag="v5.0.0-beta.5"
+_tag="v5.0.0-beta.6"
 build_style=meson
 hostmakedepends="pkg-config git"
 makedepends="wayland-devel wayland-protocols libepoxy-devel
@@ -18,7 +18,7 @@ license="MIT"
 homepage="https://github.com/noctalia-dev/noctalia"
 changelog="https://github.com/noctalia-dev/noctalia/releases"
 distfiles="https://github.com/noctalia-dev/noctalia/archive/refs/tags/${_tag}.tar.gz"
-checksum=1460781135969e9a8985c2c7343131df69f5b8595e8428cfdc416f85585b9447
+checksum=f20391942b635e8750dff6e37748d86562d51d6f9be62befc5495787ffe93dc8
 
 CXXFLAGS+=" -std=c++23"
 
