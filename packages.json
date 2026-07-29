@@ -35,7 +35,7 @@
     {
       "package": "driftwm",
       "restricted": false,
-      "build": true,
+      "build": false,
       "strategy": "source-tarball",
       "repo": "malbiruk/driftwm",
       "fallback_tags": true,
@@ -119,7 +119,7 @@
     {
       "package": "runesevka-bin",
       "restricted": false,
-      "build": true,
+      "build": false,
       "strategy": "font",
       "font": "Runesevka"
     },
@@ -166,6 +166,13 @@
       "build": false,
       "strategy": "font",
       "font": "Mayuson"
+    },
+    {
+      "package": "jetsevka-bin",
+      "restricted": false,
+      "build": true,
+      "strategy": "font",
+      "font": "Jetsevka"
     }
   ]
 }
