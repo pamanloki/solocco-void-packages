@@ -173,6 +173,14 @@
       "build": true,
       "strategy": "font",
       "font": "Jetsevka"
-    }
+    },
+    {
+      "package": "scroll",
+      "restricted": false,
+      "build": false,
+      "strategy": "source-tarball",
+      "repo": "dawsers/scroll",
+      "fallback_tags": true
+    },
   ]
 }

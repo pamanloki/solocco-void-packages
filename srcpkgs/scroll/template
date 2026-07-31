@@ -1,0 +1,29 @@
+# Template file for 'scroll'
+pkgname=scroll
+version=1.12.17
+revision=1
+build_style=meson
+configure_args="-Dwerror=false -Db_ndebug=false -Dman-pages=enabled
+ -Dsd-bus-provider=basu -Dtray=enabled -Dgdk-pixbuf=enabled"
+conf_files="/etc/scroll/config"
+hostmakedepends="pkg-config wayland-devel scdoc glslang hwids"
+makedepends="pcre2-devel json-c-devel pango-devel cairo-devel gdk-pixbuf-devel
+ libevdev-devel lua54-devel lcms2-devel libgbm-devel libglvnd-devel libseat-devel
+ eudev-libudev-devel libdrm-devel libinput-devel libxkbcommon-devel pixman-devel
+ wayland-devel wayland-protocols vulkan-loader-devel xcb-util-errors-devel
+ xcb-util-wm-devel xcb-util-renderutil-devel libdisplay-info-devel libliftoff-devel
+ libxcb-devel xcb-util-cursor-devel xcb-util-devel xcb-util-image-devel
+ xcb-util-keysyms-devel xcb-util-xrm-devel xorg-server-xwayland basu"
+depends="libcap-progs swaybg xorg-server-xwayland libxkbcommon>=1.5.0_1 lua54
+ virtual?font:sans-serif"
+short_desc="i3-compatible Wayland compositor with a PaperWM-like scrolling layout"
+maintainer="solocco"
+license="MIT"
+homepage="https://github.com/dawsers/scroll"
+changelog="https://github.com/dawsers/scroll/tags"
+distfiles="https://github.com/dawsers/scroll/archive/refs/tags/${version}.tar.gz"
+checksum=a78fb84ffeb0a648eeed5ca905072b48cd777389ba20b8d3d90c08f10840e3a1
+
+post_install() {
+	vlicense LICENSE
+}
