@@ -181,6 +181,6 @@
       "strategy": "source-tarball",
       "repo": "dawsers/scroll",
       "fallback_tags": true
-    },
+    }
   ]
 }
