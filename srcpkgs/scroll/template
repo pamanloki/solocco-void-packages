@@ -13,7 +13,7 @@ makedepends="pcre2-devel json-c-devel pango-devel cairo-devel gdk-pixbuf-devel
  wayland-devel wayland-protocols vulkan-loader-devel xcb-util-errors-devel
  xcb-util-wm-devel xcb-util-renderutil-devel libdisplay-info-devel libliftoff-devel
  libxcb-devel xcb-util-cursor-devel xcb-util-devel xcb-util-image-devel
- xcb-util-keysyms-devel xcb-util-xrm-devel xorg-server-xwayland basu"
+ xcb-util-keysyms-devel xcb-util-xrm-devel xorg-server-xwayland basu-devel"
 depends="libcap-progs swaybg xorg-server-xwayland libxkbcommon>=1.5.0_1 lua54
  virtual?font:sans-serif"
 short_desc="i3-compatible Wayland compositor with a PaperWM-like scrolling layout"
