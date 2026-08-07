@@ -19,7 +19,7 @@
     {
       "package": "helium-browser-bin",
       "restricted": false,
-      "build": true,
+      "build": false,
       "strategy": "binary-asset",
       "repo": "imputnet/helium-linux",
       "asset": "helium-{version}-x86_64_linux.tar.xz",
