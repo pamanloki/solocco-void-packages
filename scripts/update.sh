@@ -37,6 +37,27 @@ emit_new_version() {
   echo "NEW_VERSION=$1" >> "$GITHUB_ENV"
 }
 
+# Download ke file lalu hash, supaya kegagalan curl (mis. 500/404) tidak
+# ketelan oleh sha256sum dalam pipe (yang tetap sukses hash-in output kosong).
+# Exit 1 kalau download gagal atau hasilnya file kosong.
+download_and_checksum() {
+  local url="$1"
+  local tmpfile
+  tmpfile=$(mktemp)
+  if ! curl -fL --retry 3 --retry-delay 2 --retry-all-errors -s -o "$tmpfile" "$url"; then
+    echo "Error: gagal download '$url'." >&2
+    rm -f "$tmpfile"
+    return 1
+  fi
+  if [ ! -s "$tmpfile" ]; then
+    echo "Error: file hasil download kosong: '$url'." >&2
+    rm -f "$tmpfile"
+    return 1
+  fi
+  sha256sum "$tmpfile" | cut -d' ' -f1
+  rm -f "$tmpfile"
+}
+
 echo "=== [$pkg] strategy: $strategy ==="
 
 case "$strategy" in
@@ -62,11 +83,27 @@ case "$strategy" in
     fi
 
     base="https://github.com/${src_repo}/releases/download/${font_name}-v${latest_ver}"
-    wget -q "${base}/${font_name}-TTF.tar.xz"      -O /tmp/ttf.tar.xz
-    wget -q "${base}/${font_name}-NerdFont.tar.xz" -O /tmp/nerd.tar.xz
-    cs1=$(sha256sum /tmp/ttf.tar.xz  | cut -d' ' -f1)
-    cs2=$(sha256sum /tmp/nerd.tar.xz | cut -d' ' -f1)
-    rm -f /tmp/ttf.tar.xz /tmp/nerd.tar.xz
+
+    tmpttf=$(mktemp)
+    tmpnerd=$(mktemp)
+    if ! curl -fL --retry 3 --retry-delay 2 --retry-all-errors -s -o "$tmpttf" "${base}/${font_name}-TTF.tar.xz"; then
+      echo "Error: gagal download TTF asset."
+      rm -f "$tmpttf" "$tmpnerd"
+      exit 1
+    fi
+    if ! curl -fL --retry 3 --retry-delay 2 --retry-all-errors -s -o "$tmpnerd" "${base}/${font_name}-NerdFont.tar.xz"; then
+      echo "Error: gagal download NerdFont asset."
+      rm -f "$tmpttf" "$tmpnerd"
+      exit 1
+    fi
+    if [ ! -s "$tmpttf" ] || [ ! -s "$tmpnerd" ]; then
+      echo "Error: salah satu file hasil download kosong."
+      rm -f "$tmpttf" "$tmpnerd"
+      exit 1
+    fi
+    cs1=$(sha256sum "$tmpttf"  | cut -d' ' -f1)
+    cs2=$(sha256sum "$tmpnerd" | cut -d' ' -f1)
+    rm -f "$tmpttf" "$tmpnerd"
 
     set_version "$latest_ver"
     python3 - "$template" "$cs1" "$cs2" <<'PYEOF'
@@ -113,10 +150,10 @@ PYEOF
     fi
 
     tarball_url="https://github.com/${repo}/archive/refs/tags/${latest_tag}.tar.gz"
-    tmpfile=$(mktemp)
-    curl -fsSL -o "$tmpfile" "$tarball_url"
-    new_checksum=$(sha256sum "$tmpfile" | cut -d' ' -f1)
-    rm -f "$tmpfile"
+    if ! new_checksum=$(download_and_checksum "$tarball_url"); then
+      echo "Error: gagal download/hash tarball."
+      exit 1
+    fi
 
     set_version "$latest_ver"
     [ "$reset_rev" = "true" ] && set_revision_1
@@ -158,9 +195,8 @@ PYEOF
     download_url="https://github.com/${repo}/releases/download/${dl_path}/${asset_name}"
 
     echo "Fetching checksum from: $download_url"
-    checksum=$(curl -fL --retry 3 --retry-delay 2 -s "$download_url" | sha256sum | cut -d' ' -f1)
-    if [ -z "$checksum" ]; then
-      echo "Error: gagal hitung checksum."
+    if ! checksum=$(download_and_checksum "$download_url"); then
+      echo "Error: gagal download/hash asset."
       exit 1
     fi
 
@@ -201,9 +237,8 @@ PYEOF
       exit 1
     fi
 
-    checksum=$(curl -fL --retry 3 --retry-delay 2 -s "$url" | sha256sum | cut -d' ' -f1)
-    if [ -z "$checksum" ]; then
-      echo "Error: gagal hitung checksum."
+    if ! checksum=$(download_and_checksum "$url"); then
+      echo "Error: gagal download/hash RPM asset."
       exit 1
     fi
 
@@ -232,9 +267,8 @@ PYEOF
     fi
 
     deb_url="https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_${latest_ver}-1_amd64.deb"
-    checksum=$(curl -L -s "$deb_url" | sha256sum | cut -d' ' -f1)
-    if [ -z "$checksum" ]; then
-      echo "Error: gagal hitung checksum."
+    if ! checksum=$(download_and_checksum "$deb_url"); then
+      echo "Error: gagal download/hash deb."
       exit 1
     fi
 

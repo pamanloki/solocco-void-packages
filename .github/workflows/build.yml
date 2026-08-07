@@ -129,7 +129,23 @@ jobs:
         run: |
           export PATH="/opt/xbps/usr/bin/:$PATH"
           cd void-packages
-          sudo -Eu builder ./xbps-src -j$(nproc) pkg ${{ matrix.package }}
+
+          # Retry seluruh build beberapa kali. xbps-src fetch distfiles bisa
+          # kena 5xx/timeout sesaat dari upstream (GitHub releases, dll) yang
+          # hilang sendiri kalau dicoba ulang. Sebelumnya sekali gagal fetch
+          # langsung fail job tanpa retry sama sekali.
+          max_attempts=3
+          attempt=1
+          until sudo -Eu builder ./xbps-src -j"$(nproc)" pkg ${{ matrix.package }}; do
+            if [ "$attempt" -ge "$max_attempts" ]; then
+              echo "::error::Build ${{ matrix.package }} gagal setelah $attempt percobaan."
+              exit 1
+            fi
+            attempt=$((attempt + 1))
+            wait_s=$((attempt * 15))
+            echo "::warning::Build gagal (attempt $((attempt - 1))/$max_attempts), retry dalam ${wait_s}s..."
+            sleep "$wait_s"
+          done
 
       - name: Upload build artifacts
         if: steps.filter.outputs.run == 'true'
