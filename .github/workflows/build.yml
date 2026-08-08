@@ -1,4 +1,5 @@
 name: Build Packages
+
 on:
   push:
     branches:
@@ -16,25 +17,23 @@ on:
 permissions:
   contents: write
 
+concurrency: release-publish-${{ github.ref }}
+
 jobs:
   setup:
     name: Load package list
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set.outputs.matrix }}
-      pkg_list: ${{ steps.set.outputs.pkg_list }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Generate matrix and pkg list
+      - name: Generate matrix
         id: set
         run: |
           matrix=$(jq -c '{include: [.packages[] | select(.build != false)]}' packages.json)
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
-
-          pkg_list=$(jq -r '[.packages[] | select(.build != false)] | .[].package' packages.json | tr '\n' ' ')
-          echo "pkg_list=$pkg_list" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build ${{ matrix.package }}
@@ -71,6 +70,9 @@ jobs:
               echo "run=false" >> $GITHUB_OUTPUT
             fi
           elif [ "$EVENT" = "push" ]; then
+            # Memeriksa apakah nama paket muncul di pesan commit terakhir saja.
+            # Jika butuh memeriksa seluruh commit dalam push, bisa diganti:
+            # if git log --format=%B ${{ github.event.before }}..${{ github.event.after }} | grep -qF "$PKG"; then
             if echo "$MSG" | grep -qF "$PKG"; then
               echo "run=true" >> $GITHUB_OUTPUT
             else
@@ -130,10 +132,6 @@ jobs:
           export PATH="/opt/xbps/usr/bin/:$PATH"
           cd void-packages
 
-          # Retry seluruh build beberapa kali. xbps-src fetch distfiles bisa
-          # kena 5xx/timeout sesaat dari upstream (GitHub releases, dll) yang
-          # hilang sendiri kalau dicoba ulang. Sebelumnya sekali gagal fetch
-          # langsung fail job tanpa retry sama sekali.
           max_attempts=3
           attempt=1
           until sudo -Eu builder ./xbps-src -j"$(nproc)" pkg ${{ matrix.package }}; do
@@ -161,7 +159,7 @@ jobs:
   publish:
     name: Publish repo
     needs: [setup, build]
-    if: always() && needs.build.result != 'skipped'
+    if: needs.build.result == 'success'
     timeout-minutes: 15
     runs-on: ubuntu-latest
     container:
@@ -169,8 +167,6 @@ jobs:
       options: --privileged
       volumes:
         - /dev:/dev
-    env:
-      PKG_LIST: ${{ needs.setup.outputs.pkg_list }}
 
     steps:
       - name: Prepare container
@@ -198,6 +194,15 @@ jobs:
             echo "No new packages built, nothing to publish."
           fi
 
+      - name: Get list of built package names
+        if: steps.check.outputs.has_pkgs == 'true'
+        id: built-pkgs
+        run: |
+          # Ekstrak nama dasar paket dari file .xbps (sebelum versi)
+          built=$(find /tmp/new-pkgs -name '*.xbps' -exec basename {} \; | sed 's/-[0-9].*//' | sort -u | tr '\n' ' ')
+          echo "list=$built" >> $GITHUB_OUTPUT
+          echo "Built packages: $built"
+
       - name: Download existing repo from release
         if: steps.check.outputs.has_pkgs == 'true'
         env:
@@ -217,20 +222,12 @@ jobs:
 
       - name: Cleanup old versions from local repo dir
         if: steps.check.outputs.has_pkgs == 'true'
+        env:
+          PKG_LIST: ${{ steps.built-pkgs.outputs.list }}
         run: |
           cd /tmp/repo
           for pkg in $PKG_LIST; do
-            # FIX: sort by version (-V), not by mtime (-t).
-            # `ls -t` picked the "newest by file timestamp", which is unreliable
-            # when the downloaded (old) and copied-in (new) files get mtimes
-            # within the same second on a fast CI runner — this caused the
-            # wrong (older) version to survive cleanup while the newer one
-            # got deleted, so the index kept pointing at a stale version.
-            #
-            # FIX 2: anchor pattern to "-<digit>" right after pkg name.
-            # Plain `${pkg}-*.xbps` is a prefix match, so pkg="runesevka"
-            # would also glob "runesevka-bin-1.2.3.xbps" and mix two
-            # different packages into the same version sort/cleanup.
+            # Hapus semua versi kecuali yang paling baru (berdasarkan sort -V)
             ls ${pkg}-[0-9]*.xbps 2>/dev/null | sort -Vr | tail -n +2 | xargs -r rm -f
           done
 
@@ -263,15 +260,15 @@ jobs:
         if: steps.check.outputs.has_pkgs == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKG_LIST: ${{ steps.built-pkgs.outputs.list }}
         run: |
           for pkg in $PKG_LIST; do
-            # FIX: anchor to "-<digit>" so pkg="runesevka" doesn't also
-            # match/delete assets belonging to "runesevka-bin".
+            # Hapus aset .xbps maupun .xbps.sig2 milik paket ini
             gh release view repo-latest \
               --repo ${{ github.repository }} \
               --json assets \
               --jq ".assets[].name" 2>/dev/null \
-            | grep "^${pkg}-[0-9].*\.xbps" \
+            | grep "^${pkg}-[0-9].*\.(xbps|xbps\.sig2)$" \
             | while read -r asset; do
                 echo "Deleting old asset: $asset"
                 gh release delete-asset repo-latest "$asset" \
