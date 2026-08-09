@@ -181,6 +181,13 @@
       "strategy": "source-tarball",
       "repo": "dawsers/scroll",
       "fallback_tags": true
+    },
+    {
+      "package": "fenmono-font",
+      "restricted": false,
+      "build": true,
+      "strategy": "font",
+      "font": "Fenmono"
     }
   ]
 }

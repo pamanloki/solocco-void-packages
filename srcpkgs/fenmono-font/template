@@ -1,0 +1,19 @@
+pkgname=fenmono-font
+version=34.8.0
+revision=1
+depends="font-util"
+short_desc="Fenmono TTF and Nerd Font"
+maintainer="solocco"
+license="OFL-1.1"
+homepage="https://github.com/solocco/my-fonts"
+distfiles="https://github.com/solocco/my-fonts/releases/download/Fenmono-v${version}/Fenmono-TTF.tar.xz
+ https://github.com/solocco/my-fonts/releases/download/Fenmono-v${version}/Fenmono-NerdFont.tar.xz"
+checksum="4ff0fa76cf81f0db899c24ed23dabb26536f0e841e56ef75529d70a13ce3f7a3
+ 839b3c23865372d48c7acc7b6f3149bc7735bef4e2c9e70310c657dafa2a5dfc"
+font_dirs="/usr/share/fonts/TTF"
+provides="font:monospace-0_1"
+ 
+do_install() {
+    vmkdir usr/share/fonts/TTF
+    vcopy *.ttf usr/share/fonts/TTF
+}
