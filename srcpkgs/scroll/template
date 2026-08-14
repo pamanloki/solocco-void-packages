@@ -13,7 +13,8 @@ makedepends="pcre2-devel json-c-devel pango-devel cairo-devel gdk-pixbuf-devel
  wayland-devel wayland-protocols vulkan-loader-devel xcb-util-errors-devel
  xcb-util-wm-devel xcb-util-renderutil-devel libdisplay-info-devel libliftoff-devel
  libxcb-devel xcb-util-cursor-devel xcb-util-devel xcb-util-image-devel
- xcb-util-keysyms-devel xcb-util-xrm-devel xorg-server-xwayland basu-devel"
+ xcb-util-keysyms-devel xcb-util-xrm-devel xorg-server-xwayland basu-devel
+ readline-devel"
 depends="libcap-progs swaybg xorg-server-xwayland libxkbcommon>=1.5.0_1 lua54
  virtual?font:sans-serif"
 short_desc="i3-compatible Wayland compositor with a PaperWM-like scrolling layout"
@@ -23,7 +24,6 @@ homepage="https://github.com/dawsers/scroll"
 changelog="https://github.com/dawsers/scroll/tags"
 distfiles="https://github.com/dawsers/scroll/archive/refs/tags/${version}.tar.gz"
 checksum=00002e67d640a1132be181b128d505520298c6ef5a0587bc81b53b86f6858ca5
-
 post_install() {
 	vlicense LICENSE
 }
