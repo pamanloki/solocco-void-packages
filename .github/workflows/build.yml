@@ -159,7 +159,13 @@ jobs:
   publish:
     name: Publish repo
     needs: [setup, build]
-    if: needs.build.result == 'success'
+    # FIX: sebelumnya `if: needs.build.result == 'success'`.
+    # Karena strategy.fail-fast: false, SATU paket gagal build saja membuat
+    # needs.build.result == 'failure', sehingga seluruh job publish di-skip
+    # walau paket lain sudah sukses build & ter-upload sebagai artifact.
+    # Sekarang publish tetap jalan selama job tidak dibatalkan, dan step-step
+    # di dalamnya sudah punya gate sendiri lewat steps.check.outputs.has_pkgs.
+    if: ${{ !cancelled() && needs.setup.result == 'success' }}
     timeout-minutes: 15
     runs-on: ubuntu-latest
     container:
@@ -263,12 +269,16 @@ jobs:
           PKG_LIST: ${{ steps.built-pkgs.outputs.list }}
         run: |
           for pkg in $PKG_LIST; do
-            # Hapus aset .xbps maupun .xbps.sig2 milik paket ini
+            # FIX: sebelumnya `grep "^${pkg}-[0-9].*\.(xbps|xbps\.sig2)$"` tanpa -E.
+            # Tanpa -E, grep pakai BRE dimana ( ) | adalah karakter literal,
+            # bukan alternation/group. Jadi pattern lama tidak pernah match
+            # nama file asli sama sekali -> asset lama TIDAK PERNAH terhapus
+            # dan terus menumpuk di release setiap build. Sekarang pakai -E.
             gh release view repo-latest \
               --repo ${{ github.repository }} \
               --json assets \
               --jq ".assets[].name" 2>/dev/null \
-            | grep "^${pkg}-[0-9].*\.(xbps|xbps\.sig2)$" \
+            | grep -E "^${pkg}-[0-9].*\.(xbps|xbps\.sig2)$" \
             | while read -r asset; do
                 echo "Deleting old asset: $asset"
                 gh release delete-asset repo-latest "$asset" \
