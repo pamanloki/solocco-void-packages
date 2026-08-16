@@ -1,6 +1,6 @@
 # Template file for 'nushell'
 pkgname=nushell
-version=0.114.1
+version=0.115.0
 revision=1
 build_style=cargo
 configure_args="--no-default-features --features=plugin,trash-support,sqlite,network,native-tls"
@@ -12,7 +12,7 @@ license="MIT"
 homepage="https://www.nushell.sh/"
 changelog="https://www.nushell.sh/blog/2026-05-30-nushell_v0_113_1.html"
 distfiles="https://github.com/nushell/nushell/archive/refs/tags/${version}.tar.gz"
-checksum=48ef2fb6bb3ec2b1dcff87a792aeebdfab10b29f3119a62291075b17e4ad25d5
+checksum=09859dde0207804abdd6f574c5b2f0946041555418bb6d3c44d4b9f86c7efd78
 register_shell="/usr/bin/nu"
 # all tests fail with argument --target
 make_check=no
