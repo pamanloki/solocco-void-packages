@@ -1,6 +1,6 @@
 pkgname=fenmono-font
 version=34.8.0
-revision=1
+revision=2
 depends="font-util"
 short_desc="Fenmono TTF and Nerd Font"
 maintainer="solocco"
