@@ -8,8 +8,8 @@ license="OFL-1.1"
 homepage="https://github.com/solocco/my-fonts"
 distfiles="https://github.com/solocco/my-fonts/releases/download/Fenmono-v${version}/Fenmono-TTF.tar.xz
  https://github.com/solocco/my-fonts/releases/download/Fenmono-v${version}/Fenmono-NerdFont.tar.xz"
-checksum="4ff0fa76cf81f0db899c24ed23dabb26536f0e841e56ef75529d70a13ce3f7a3
- 839b3c23865372d48c7acc7b6f3149bc7735bef4e2c9e70310c657dafa2a5dfc"
+checksum="0e921be68822c9d7cd7afaf2ed2f7646190c5fc5a2084a92973f791d3b79bd91
+ 11516bdb22b0c52f1f47b0ca01ca09a6724d1f88ac712d90b6a78deb783145e0"
 font_dirs="/usr/share/fonts/TTF"
 provides="font:monospace-0_1"
  
