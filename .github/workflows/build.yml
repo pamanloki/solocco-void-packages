@@ -121,18 +121,6 @@ jobs:
           cp -rv main-repo/srcpkgs/. void-packages/srcpkgs/
           chown -R builder:builder void-packages
 
-      - name: Patch shlibs (pending upstream PR)
-        if: steps.filter.outputs.run == 'true'
-        run: |
-          cd void-packages
-          # scenefx 0.5 belum di-merge upstream (PR void-linux/void-packages#61453),
-          # jadi common/shlibs upstream masih mentok di soname 0.4. Tambahin
-          # manual biar xbps-src ngenalin shlib-provides scenefx 0.5.
-          # Idempotent: kalau PR-nya udah landing di upstream, grep bakal
-          # match dan sed di-skip, gak akan dobel-entry.
-          grep -qxF 'libscenefx-0.5.so scenefx-0.5_1' common/shlibs || \
-            sed -i '/^libscenefx-0.4.so /a libscenefx-0.5.so scenefx-0.5_1' common/shlibs
-
       - name: Prepare masterdir
         if: steps.filter.outputs.run == 'true'
         run: |
@@ -140,6 +128,25 @@ jobs:
           sudo -Eu builder common/travis/set_mirror.sh
           sudo -Eu builder common/travis/prepare.sh
           common/travis/fetch-xtools.sh
+
+      - name: Patch shlibs (pending upstream PR)
+        if: steps.filter.outputs.run == 'true'
+        run: |
+          cd void-packages
+          # scenefx 0.5 belum di-merge upstream (PR void-linux/void-packages#61453),
+          # jadi common/shlibs upstream masih mentok di soname 0.4. Tambahin
+          # manual biar xbps-src ngenalin shlib-provides scenefx 0.5.
+          # FIX: dipindah ke SETELAH "Prepare masterdir" -- common/travis/prepare.sh
+          # kemungkinan ngelakuin git clean/reset di repo void-packages, yang
+          # bakal ngapus modifikasi uncommitted kita kalau patch dilakuin
+          # SEBELUM step itu. Jadi ini harus jadi hal terakhir yang nyentuh
+          # void-packages sebelum xbps-src pkg dipanggil.
+          # Idempotent: kalau PR-nya udah landing di upstream, grep bakal
+          # match dan sed di-skip, gak akan dobel-entry.
+          grep -qxF 'libscenefx-0.5.so scenefx-0.5_1' common/shlibs || \
+            sed -i '/^libscenefx-0.4.so /a libscenefx-0.5.so scenefx-0.5_1' common/shlibs
+          echo "--- shlibs entry buat scenefx (verifikasi patch nempel) ---"
+          grep -F 'libscenefx-0.5.so' common/shlibs
 
       - name: Enable restricted packages
         if: steps.filter.outputs.run == 'true' && matrix.restricted == true
