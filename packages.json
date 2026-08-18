@@ -126,7 +126,7 @@
     {
       "package": "scenefx",
       "restricted": false,
-      "build": false,
+      "build": true,
       "strategy": "source-tarball",
       "repo": "wlrfx/scenefx"
     },
