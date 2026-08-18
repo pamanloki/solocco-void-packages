@@ -109,8 +109,29 @@ jobs:
       - name: Merge template
         if: steps.filter.outputs.run == 'true'
         run: |
-          cp -rv main-repo/srcpkgs/${{ matrix.package }} void-packages/srcpkgs/
+          # FIX: sebelumnya cuma copy folder matrix.package sendiri:
+          #   cp -rv main-repo/srcpkgs/${{ matrix.package }} void-packages/srcpkgs/
+          # Masalahnya, kalau package lain (mis. scenefx) juga punya versi
+          # custom di repo ini tapi lagi bukan giliran build-nya, xbps-src
+          # bakal ambil versi LAMA dari upstream void-packages pas resolve
+          # makedepends package yang lagi di-build (mis. mangowc butuh
+          # scenefx-devel >= 0.5, tapi upstream masih di 0.4).
+          # Copy SEMUA srcpkgs custom kita supaya konsisten di semua job
+          # matrix, apapun package yang lagi giliran build.
+          cp -rv main-repo/srcpkgs/. void-packages/srcpkgs/
           chown -R builder:builder void-packages
+
+      - name: Patch shlibs (pending upstream PR)
+        if: steps.filter.outputs.run == 'true'
+        run: |
+          cd void-packages
+          # scenefx 0.5 belum di-merge upstream (PR void-linux/void-packages#61453),
+          # jadi common/shlibs upstream masih mentok di soname 0.4. Tambahin
+          # manual biar xbps-src ngenalin shlib-provides scenefx 0.5.
+          # Idempotent: kalau PR-nya udah landing di upstream, grep bakal
+          # match dan sed di-skip, gak akan dobel-entry.
+          grep -qxF 'libscenefx-0.5.so scenefx-0.5_1' common/shlibs || \
+            sed -i '/^libscenefx-0.4.so /a libscenefx-0.5.so scenefx-0.5_1' common/shlibs
 
       - name: Prepare masterdir
         if: steps.filter.outputs.run == 'true'
