@@ -1,0 +1,11 @@
+--- a/meson.build
++++ b/meson.build
+@@ -14,7 +14,7 @@
+   dependency('pango'),
+   dependency('pangocairo'),
+   dependency('libpulse'),
+-  dependency('libsystemd'),
++  dependency('libsystemd', 'libelogind', 'basu'),
+   dependency('libudev'),
+   dependency('gdk-pixbuf-2.0'),
+   dependency('alsa'),
