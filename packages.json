@@ -188,6 +188,14 @@
       "build": true,
       "strategy": "font",
       "font": "Fenmono"
+    },
+    {
+      "package": "mangobar",
+      "restricted": false,
+      "build": true,
+      "strategy": "source-tarball",
+      "repo": "mangowm/mangobar",
+      "fallback_tags": true
     }
   ]
 }
