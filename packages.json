@@ -177,7 +177,7 @@
     {
       "package": "scroll",
       "restricted": false,
-      "build": true,
+      "build": false,
       "strategy": "source-tarball",
       "repo": "dawsers/scroll",
       "fallback_tags": true
