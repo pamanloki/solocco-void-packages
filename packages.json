@@ -133,7 +133,7 @@
     {
       "package": "mangowm",
       "restricted": false,
-      "build": true,
+      "build": false,
       "strategy": "source-tarball",
       "repo": "mangowm/mango"
     },
@@ -177,7 +177,7 @@
     {
       "package": "scroll",
       "restricted": false,
-      "build": false,
+      "build": true,
       "strategy": "source-tarball",
       "repo": "dawsers/scroll",
       "fallback_tags": true
@@ -192,7 +192,7 @@
     {
       "package": "mangobar",
       "restricted": false,
-      "build": true,
+      "build": false,
       "strategy": "source-tarball",
       "repo": "mangowm/mangobar",
       "fallback_tags": true
