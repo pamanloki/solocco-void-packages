@@ -10,7 +10,7 @@ license="MIT"
 homepage="https://github.com/pamanloki/flavours"
 changelog="https://raw.githubusercontent.com/pamanloki/flavours/master/CHANGELOG.md"
 distfiles=https://github.com/pamanloki/flavours/archive/refs/tags/v${version}.tar.gz
-checksum=31e7b6c2ac15665d2b7990cfc4bd86b190fd0a4e3c9e932fb20966503d55ba7e
+checksum=20f88ee44a97f55b74e5e57d84fa5ef5857e10bca722e454ed00339c7780bd40
 
 post_build() {
 	FLAVOURS="target/${RUST_TARGET}/release/flavours"
