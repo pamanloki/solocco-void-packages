@@ -196,6 +196,13 @@
       "strategy": "source-tarball",
       "repo": "mangowm/mangobar",
       "fallback_tags": true
+    },
+    {
+      "package": "flavours-bin",
+      "restricted": false,
+      "build": true,
+      "strategy": "source-tarball",
+      "repo": "pamanloki/flavours"
     }
   ]
 }

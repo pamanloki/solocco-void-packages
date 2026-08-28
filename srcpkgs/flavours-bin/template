@@ -1,0 +1,30 @@
+# Template file for 'flavours-bin'
+pkgname=flavours-bin
+version=0.8.0
+revision=1
+build_style=cargo
+build_helper=qemu
+short_desc="Simple and easy cli to build and use base16 schemes"
+maintainer="solocoo"
+license="MIT"
+homepage="https://github.com/pamanloki/flavours"
+changelog="https://raw.githubusercontent.com/pamanloki/flavours/master/CHANGELOG.md"
+distfiles=https://github.com/pamanloki/flavours/archive/refs/tags/v${version}.tar.gz
+checksum=31e7b6c2ac15665d2b7990cfc4bd86b190fd0a4e3c9e932fb20966503d55ba7e
+
+post_build() {
+	FLAVOURS="target/${RUST_TARGET}/release/flavours"
+	vtargetrun ${FLAVOURS} --completions bash > flavours.bash
+	vtargetrun ${FLAVOURS} --completions zsh  > flavours.zsh
+	vtargetrun ${FLAVOURS} --completions fish > flavours.fish
+}
+
+post_install() {
+	vcompletion flavours.bash bash
+	vcompletion flavours.zsh zsh
+	vcompletion flavours.fish fish
+
+	vlicense LICENSE
+	vdoc README.md
+	vsconf example.toml
+}
