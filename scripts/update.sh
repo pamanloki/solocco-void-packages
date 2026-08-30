@@ -21,6 +21,15 @@ gh_api() {
   curl -fsSL "${AUTH_HEADER[@]}" "https://api.github.com/$1"
 }
 
+# Versi "soft": TANPA -f, jadi HTTP 404/403 tetap balikin body JSON dengan
+# exit 0 (curl gak nganggep HTTP error sebagai error tanpa -f). Ini penting
+# buat probe yang boleh "gak ketemu": tanpa ini, curl -f exit non-zero ->
+# pipefail bikin pipeline gagal -> set -e matiin script SEBELUM logika
+# fallback/skip sempat jalan (mis. repo yang cuma punya tag tanpa release).
+gh_api_soft() {
+  curl -sSL "${AUTH_HEADER[@]}" "https://api.github.com/$1"
+}
+
 current_version() {
   grep -m1 '^version=' "$template" | cut -d= -f2 | tr -d '"'
 }
@@ -127,9 +136,13 @@ PYEOF
     reset_rev=$(echo "$PKG_JSON" | jq -r '.reset_revision // true')
     fallback_tags=$(echo "$PKG_JSON" | jq -r '.fallback_tags // false')
 
-    latest_tag=$(gh_api "repos/${repo}/releases/latest" | jq -r '.tag_name // empty')
+    # Pakai gh_api_soft: repo tanpa GitHub Release resmi bakal balas 404 di
+    # endpoint releases/latest. Dengan curl -f biasa, 404 itu matiin script
+    # (set -e) sebelum fallback ke tags kejangkau -- bikin fallback_tags
+    # jadi dead code.
+    latest_tag=$(gh_api_soft "repos/${repo}/releases/latest" | jq -r '.tag_name // empty')
     if [ -z "$latest_tag" ] && [ "$fallback_tags" = "true" ]; then
-      latest_tag=$(gh_api "repos/${repo}/tags" | jq -r '.[0].name // empty')
+      latest_tag=$(gh_api_soft "repos/${repo}/tags" | jq -r '.[0].name // empty')
     fi
     if [ -z "$latest_tag" ]; then
       echo "Gagal ambil tag terbaru, skip"
