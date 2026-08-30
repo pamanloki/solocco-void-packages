@@ -76,8 +76,11 @@ case "$strategy" in
     font_name=$(echo "$PKG_JSON" | jq -r '.font')
     src_repo="solocco/my-fonts"
 
-    latest_ver=$(gh_api "repos/${src_repo}/releases" | \
-      jq -r --arg p "${font_name}-v" '[.[] | select(.tag_name | startswith($p))] | .[0].tag_name // empty' | \
+    # gh_api_soft + penjaga `type=="array"`: kalau API balas body error
+    # (object, mis. rate-limit 403), jangan sampai `.[]` bikin jq crash ->
+    # pipefail -> set -e. Biar jatuh ke skip yang rapi di bawah.
+    latest_ver=$(gh_api_soft "repos/${src_repo}/releases" | \
+      jq -r --arg p "${font_name}-v" 'if type=="array" then ([.[] | select(.tag_name | startswith($p))] | .[0].tag_name // empty) else empty end' | \
       sed "s/${font_name}-v//")
     cur_ver=$(current_version)
     echo "Current: $cur_ver | Latest: $latest_ver"
@@ -142,7 +145,7 @@ PYEOF
     # jadi dead code.
     latest_tag=$(gh_api_soft "repos/${repo}/releases/latest" | jq -r '.tag_name // empty')
     if [ -z "$latest_tag" ] && [ "$fallback_tags" = "true" ]; then
-      latest_tag=$(gh_api_soft "repos/${repo}/tags" | jq -r '.[0].name // empty')
+      latest_tag=$(gh_api_soft "repos/${repo}/tags" | jq -r 'if type=="array" then (.[0].name // empty) else empty end')
     fi
     if [ -z "$latest_tag" ]; then
       echo "Gagal ambil tag terbaru, skip"
@@ -185,7 +188,7 @@ PYEOF
     url_v_prefix=$(echo "$PKG_JSON" | jq -r '.url_v_prefix // false')
     quoted=$(echo "$PKG_JSON" | jq -r '.quoted_checksum // true')
 
-    latest_tag=$(gh_api "repos/${repo}/releases/latest" | jq -r '.tag_name // empty')
+    latest_tag=$(gh_api_soft "repos/${repo}/releases/latest" | jq -r '.tag_name // empty')
     if [ -z "$latest_tag" ]; then
       echo "Gagal ambil versi terbaru, skip"
       exit 0
@@ -228,8 +231,8 @@ PYEOF
   # ============ BRAVE ORIGIN (cari release yg punya asset .rpm x86_64) ============
   brave)
     src_repo="brave/brave-browser"
-    latest_ver=$(gh_api "repos/${src_repo}/releases?per_page=50" | \
-      jq -r '[.[] | select(.prerelease == false) | select(any(.assets[]; .name | test("^brave-origin-[0-9].*x86_64\\.rpm$")))] | first | .tag_name' | \
+    latest_ver=$(gh_api_soft "repos/${src_repo}/releases?per_page=50" | \
+      jq -r 'if type=="array" then ([.[] | select(.prerelease == false) | select(any(.assets[]; .name | test("^brave-origin-[0-9].*x86_64\\.rpm$")))] | first | .tag_name // empty) else empty end' | \
       sed 's/^v//')
     if [ -z "$latest_ver" ] || [ "$latest_ver" = "null" ]; then
       echo "Error: gagal ambil versi terbaru."
@@ -243,8 +246,8 @@ PYEOF
       exit 0
     fi
 
-    url=$(gh_api "repos/${src_repo}/releases?per_page=50" | \
-      jq -r --arg v "v${latest_ver}" '[.[] | select(.tag_name == $v)] | first | .assets[] | select(.name | test("^brave-origin-[0-9].*x86_64\\.rpm$")) | .browser_download_url')
+    url=$(gh_api_soft "repos/${src_repo}/releases?per_page=50" | \
+      jq -r --arg v "v${latest_ver}" 'if type=="array" then ([.[] | select(.tag_name == $v)] | first | .assets[] | select(.name | test("^brave-origin-[0-9].*x86_64\\.rpm$")) | .browser_download_url) else empty end')
     if [ -z "$url" ]; then
       echo "Error: RPM asset tidak ketemu di release v${latest_ver}."
       exit 1
