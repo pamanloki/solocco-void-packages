@@ -38,6 +38,7 @@ makedepends="
 	qt6-tools-devel
 	qt6-base-private-devel
 	kddockwidgets-devel
+	fontconfig-devel
 "
 depends="qt6-wayland"
 short_desc="PCSX2 - The Playstation 2 Emulator"
@@ -66,6 +67,19 @@ post_patch() {
 	curl -sL https://github.com/sammycage/plutosvg/archive/refs/tags/v0.0.8.tar.gz |
 	tar xzvf - -C /tmp
 	cd /tmp/plutosvg-0.0.8
+	cmake -B build .
+	cmake --build build
+	cmake --install build
+
+	# install rapidyaml (ryml) - required as a system dep by PCSX2 >= 2.8
+	# (find_package(ryml REQUIRED)). Use the upstream self-contained -src.tgz
+	# release asset, which bundles the c4core submodule, at the version PCSX2
+	# pins in its own dependency build scripts.
+	curl -sL https://github.com/biojppm/rapidyaml/releases/download/v0.12.1/rapidyaml-0.12.1-src.tgz \
+		-o /tmp/rapidyaml-0.12.1-src.tgz
+	echo "e9efcdd17f86287748793cf21d106e461fcad8d103a3e5a23632afe93828660d  /tmp/rapidyaml-0.12.1-src.tgz" | sha256sum -c -
+	tar xzf /tmp/rapidyaml-0.12.1-src.tgz -C /tmp
+	cd /tmp/rapidyaml-0.12.1-src
 	cmake -B build .
 	cmake --build build
 	cmake --install build
