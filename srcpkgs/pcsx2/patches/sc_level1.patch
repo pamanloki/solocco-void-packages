@@ -1,0 +1,15 @@
+_SC_LEVEL1_DCACHE_LINESIZE & _SC_LEVEL1_ICACHE_LINESIZE are only available
+on glibc, setting them to 0 instead should not do too much harm.
+--- a/common/Linux/LnxHostSys.cpp	2026-06-08 17:33:18.088220105 +0200
++++ b/common/Linux/LnxHostSys.cpp	2026-06-08 17:33:42.234222875 +0200
+@@ -114,8 +114,8 @@
+ 
+ 	return static_cast<size_t>(max_line_size);
+ #else
+-	int l1i = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
+-	int l1d = sysconf(_SC_LEVEL1_ICACHE_LINESIZE);
++	int l1i = 0;
++	int l1d = 0;
+ 	int res = (l1i > l1d) ? l1i : l1d;
+ 	for (int index = 0; index < 16; index++)
+ 	{

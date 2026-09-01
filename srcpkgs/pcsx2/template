@@ -1,0 +1,77 @@
+# Template file for 'pcsx2'
+pkgname=pcsx2
+version=2.8.1
+revision=1
+build_style="cmake"
+configure_args="
+	-DCMAKE_BUILD_TYPE=Release
+	-DCMAKE_C_COMPILER=clang
+	-DCMAKE_CXX_COMPILER=clang++
+	-DCMAKE_EXE_LINKER_FLAGS_INIT='-fuse-ld=lld'
+	-DCMAKE_MODULE_LINKER_FLAGS_INIT='-fuse-ld=lld'
+	-DENABLE_TESTS=OFF
+	-DWAYLAND_API=ON
+	-DX11_API=ON
+	-DUSE_BACKTRACE=OFF
+	-DPACKAGE_MODE=ON
+	-DUSE_VULKAN=ON
+	-DDISABLE_ADVANCE_SIMD=TRUE
+	-DDUSE_LINKED_FFMPEG=ON
+	-DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON
+"
+hostmakedepends="pkgconf cmake curl tar extra-cmake-modules clang lld"
+makedepends="
+	zlib-devel
+	libpng-devel
+	libjpeg-turbo-devel
+	libzstd-devel
+	liblz4-devel
+	libwebp-devel
+	SDL3-devel
+	SDL3_image-devel
+	SDL3_ttf-devel
+	shaderc
+	libcurl-devel
+	libpcap-devel
+	qt6-base-devel
+	qt6-wayland-devel
+	qt6-tools-devel
+	qt6-base-private-devel
+	kddockwidgets-devel
+"
+depends="qt6-wayland"
+short_desc="PCSX2 - The Playstation 2 Emulator"
+maintainer="Wladimir Bec <wladimirbec@gmail.com>"
+license="GPL-3.0-or-later"
+homepage="https://github.com/PCSX2/pcsx2"
+distfiles="${homepage}/archive/refs/tags/v${version}.tar.gz"
+checksum=57ddcb291785a008351e98e20cb2df9118c9db4f2c4ce03e4b78554fd94bbc83
+
+post_patch() {
+	export CC=clang
+	export CXX=clang++
+	export AR=llvm-ar
+	export NM=llvm-nm
+	export LDFLAGS=""
+
+	# install plutovg
+	curl -sL https://github.com/sammycage/plutovg/archive/refs/tags/v1.3.3.tar.gz |
+	tar xzvf - -C /tmp
+	cd /tmp/plutovg-1.3.3
+	cmake -B build .
+	cmake --build build
+	cmake --install build
+
+	# install plutosvg
+	curl -sL https://github.com/sammycage/plutosvg/archive/refs/tags/v0.0.8.tar.gz |
+	tar xzvf - -C /tmp
+	cd /tmp/plutosvg-0.0.8
+	cmake -B build .
+	cmake --build build
+	cmake --install build
+}
+
+post_install() {
+	vinstall bin/resources/icons/AppIconLarge.png 644 usr/share/icons/hicolor/512x512/apps pcsx2.png
+	vinstall "${FILESDIR}"/pcsx2.desktop 644 usr/share/applications
+}

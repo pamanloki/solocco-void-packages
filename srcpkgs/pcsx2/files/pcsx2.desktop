@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=PCSX2
+Exec=/usr/bin/pcsx2-qt %U
+Terminal=false
+Type=Application
+Icon=pcsx2
+StartupWMClass=pcsx2
+GenericName=pcsx2
+Categories=Game;Emulator;
+Comment=PCSX2 - The Playstation 2 Emulator

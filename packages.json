@@ -203,6 +203,13 @@
       "build": true,
       "strategy": "source-tarball",
       "repo": "pamanloki/flavours"
+    },
+    {
+      "package": "pcsx2",
+      "restricted": false,
+      "build": true,
+      "strategy": "source-tarball",
+      "repo": "PCSX2/pcsx2"
     }
   ]
 }
