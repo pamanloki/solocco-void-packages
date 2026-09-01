@@ -19,7 +19,7 @@ configure_args="
 	-DDUSE_LINKED_FFMPEG=ON
 	-DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON
 "
-hostmakedepends="pkgconf cmake curl tar extra-cmake-modules clang lld"
+hostmakedepends="pkgconf cmake curl tar extra-cmake-modules clang lld git"
 makedepends="
 	zlib-devel
 	libpng-devel
