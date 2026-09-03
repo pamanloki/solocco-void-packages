@@ -1,6 +1,6 @@
 # Template file for 'flavours-bin'
 pkgname=flavours-bin
-version=0.8.0
+version=0.9.0
 revision=1
 build_style=cargo
 build_helper=qemu
@@ -10,7 +10,7 @@ license="MIT"
 homepage="https://github.com/pamanloki/flavours"
 changelog="https://raw.githubusercontent.com/pamanloki/flavours/master/CHANGELOG.md"
 distfiles=https://github.com/pamanloki/flavours/archive/refs/tags/v${version}.tar.gz
-checksum=20f88ee44a97f55b74e5e57d84fa5ef5857e10bca722e454ed00339c7780bd40
+checksum=c75d2805f1557e11cdadd3bf8e082bec2585329735302820b511beeeff0fe137
 
 post_build() {
 	FLAVOURS="target/${RUST_TARGET}/release/flavours"
