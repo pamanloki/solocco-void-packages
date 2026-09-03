@@ -1,6 +1,6 @@
 # Template file for 'mangobar'
 pkgname=mangobar
-version=0.2.0
+version=0.2.1
 revision=1
 build_style=meson
 hostmakedepends="pkg-config wayland-devel wayland-protocols python3"
@@ -13,7 +13,7 @@ license="GPL-3.0-or-later"
 homepage="https://github.com/mangowm/mangobar"
 changelog="https://github.com/mangowm/mangobar/tags"
 distfiles="https://github.com/mangowm/mangobar/archive/refs/tags/${version}.tar.gz"
-checksum=47f8442ec077e2889a0bc4574d8948aaa587130b5f0d950448255377058bebb8
+checksum=83ace53cca7b0702baee0453998e8ac2ca9f7e3033737ce617df18bff8a37613
 
 post_install() {
 	vlicense LICENSE

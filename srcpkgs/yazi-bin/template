@@ -1,6 +1,6 @@
 # Template file for 'yazi-bin'
 pkgname=yazi-bin
-version=26.8.15
+version=26.9.1
 revision=1
 archs="x86_64"
 wrksrc="yazi-x86_64-unknown-linux-gnu"
@@ -9,7 +9,7 @@ maintainer="Pharacox <https://github.com/solocco>"
 license="MIT"
 homepage="https://github.com/sxyazi/yazi"
 distfiles="https://github.com/sxyazi/yazi/releases/download/v${version}/yazi-x86_64-unknown-linux-gnu.zip"
-checksum="cc67eb7991550c2f9407cda52d3f5af0937627aa6884e7de99a04fcf059807e0"
+checksum="a02fe91d3304294048c681f010f1100856872a4e98ecf6927328e888d40a6ad2"
 
 # Prebuilt binary, jangan di-strip biar gak korup
 nostrip=yes
