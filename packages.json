@@ -51,7 +51,7 @@
     {
       "package": "nushell",
       "restricted": false,
-      "build": true,
+      "build": false,
       "strategy": "source-tarball",
       "repo": "nushell/nushell"
     },
@@ -185,7 +185,7 @@
     {
       "package": "fenmono-font",
       "restricted": false,
-      "build": true,
+      "build": false,
       "strategy": "font",
       "font": "Fenmono"
     },
