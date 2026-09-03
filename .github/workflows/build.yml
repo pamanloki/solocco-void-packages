@@ -25,15 +25,52 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set.outputs.matrix }}
+      changed_pkgs: ${{ steps.changed.outputs.list }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          # Perlu history dua sisi biar bisa diff before..after seluruh
+          # commit dalam push (bukan cuma HEAD).
+          fetch-depth: 0
 
       - name: Generate matrix
         id: set
         run: |
           matrix=$(jq -c '{include: [.packages[] | select(.build != false)]}' packages.json)
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+      - name: Detect changed packages
+        id: changed
+        if: github.event_name == 'push'
+        run: |
+          # FIX: sebelumnya filter di job build cuma cek pesan commit HEAD
+          # (`echo "$MSG" | grep -qF "$PKG"`). Bikin update template kelewat
+          # kalau: push isinya banyak commit (cuma HEAD yang diperiksa),
+          # HEAD-nya merge commit tanpa nama pkg, pesan commit tidak sebut
+          # nama pkg secara literal, atau nama pkg jadi substring nama pkg
+          # lain (grep -F, bukan word boundary).
+          # Sekarang: deteksi berdasarkan file yang benar-benar berubah di
+          # bawah srcpkgs/<pkg>/ pada RANGE commit yang di-push.
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.event.after }}"
+          if [ -z "$BEFORE" ] \
+             || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] \
+             || ! git rev-parse --verify "$BEFORE^{commit}" >/dev/null 2>&1; then
+            # Branch baru / force-push / before-commit tidak ada di local:
+            # fallback ke file yang berubah di HEAD saja.
+            echo "Fallback: diff terhadap HEAD saja"
+            files=$(git show --name-only --format= "${AFTER:-HEAD}" -- 'srcpkgs/*' 2>/dev/null || true)
+          else
+            echo "Range: $BEFORE..$AFTER"
+            files=$(git diff --name-only "$BEFORE" "$AFTER" -- 'srcpkgs/*')
+          fi
+          list=$(printf '%s\n' "$files" \
+            | awk -F/ 'NF>=2 && $1=="srcpkgs" {print $2}' \
+            | sort -u \
+            | tr '\n' ' ')
+          echo "Changed packages: $list"
+          echo "list=$list" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build ${{ matrix.package }}
@@ -62,7 +99,7 @@ jobs:
           PKG="${{ matrix.package }}"
           EVENT="${{ github.event_name }}"
           INPUT="${{ github.event.inputs.package }}"
-          MSG="${{ github.event.head_commit.message }}"
+          CHANGED="${{ needs.setup.outputs.changed_pkgs }}"
           if [ "$EVENT" = "workflow_dispatch" ]; then
             if [ "$INPUT" = "$PKG" ] || [ "$INPUT" = "all" ]; then
               echo "run=true" >> $GITHUB_OUTPUT
@@ -70,14 +107,14 @@ jobs:
               echo "run=false" >> $GITHUB_OUTPUT
             fi
           elif [ "$EVENT" = "push" ]; then
-            # Memeriksa apakah nama paket muncul di pesan commit terakhir saja.
-            # Jika butuh memeriksa seluruh commit dalam push, bisa diganti:
-            # if git log --format=%B ${{ github.event.before }}..${{ github.event.after }} | grep -qF "$PKG"; then
-            if echo "$MSG" | grep -qF "$PKG"; then
-              echo "run=true" >> $GITHUB_OUTPUT
-            else
-              echo "run=false" >> $GITHUB_OUTPUT
-            fi
+            # Daftar package yang berubah dikomputasi di job setup dari
+            # `git diff` seluruh commit dalam push (before..after) --
+            # nama pkg persis (word-boundary via spasi pembatas), bukan
+            # substring, dan tidak tergantung pesan commit sama sekali.
+            case " $CHANGED " in
+              *" $PKG "*) echo "run=true" >> $GITHUB_OUTPUT ;;
+              *)          echo "run=false" >> $GITHUB_OUTPUT ;;
+            esac
           else
             echo "run=false" >> $GITHUB_OUTPUT
           fi
