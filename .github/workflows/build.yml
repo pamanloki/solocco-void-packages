@@ -122,10 +122,28 @@ jobs:
       - name: Prepare container
         if: steps.filter.outputs.run == 'true'
         run: |
+          # FIX: sebelumnya `xbps-install -Syu xbps && xbps-install -yu && xbps-install -y ...`
+          # rentan ke reposync 404 dari repo-ci.voidlinux.org (upstream void CI
+          # mirror kadang balesin 404 di x86_64-repodata). Kalau step pertama
+          # gagal, chain `&&` bikin `xbps-install -y ... curl ...` gak jalan,
+          # dan baris `curl ... gh_...tar.gz | tar ...` di bawah mati dengan
+          # "curl: not found" -> job Prepare container gagal -> build/publish
+          # ga jalan walaupun cuma flake sesaat.
+          # Sekarang: fallback otomatis ke repo-default (mirror publik void)
+          # kalau bootstrap via repo-ci gagal, plus retry download gh CLI.
           mkdir -p /etc/xbps.d && cp /usr/share/xbps.d/*-repository-*.conf /etc/xbps.d/
           sed -i 's|repo-default|repo-ci|g' /etc/xbps.d/*-repository-*.conf
-          xbps-install -Syu xbps && xbps-install -yu && xbps-install -y sudo bash curl git
-          curl -fsSL https://github.com/cli/cli/releases/download/v2.67.0/gh_2.67.0_linux_amd64.tar.gz | tar -xz -C /tmp
+          bootstrap_xbps() {
+            xbps-install -Syu xbps && xbps-install -yu && xbps-install -y sudo bash curl git
+          }
+          if ! bootstrap_xbps; then
+            echo "::warning::repo-ci gagal, fallback ke repo-default"
+            sed -i 's|repo-ci|repo-default|g' /etc/xbps.d/*-repository-*.conf
+            bootstrap_xbps
+          fi
+          curl --retry 5 --retry-delay 3 --retry-all-errors -fsSL \
+            https://github.com/cli/cli/releases/download/v2.67.0/gh_2.67.0_linux_amd64.tar.gz \
+            | tar -xz -C /tmp
           install -m755 /tmp/gh_2.67.0_linux_amd64/bin/gh /usr/local/bin/gh
           useradd -G xbuilder -M builder
           echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
@@ -242,10 +260,23 @@ jobs:
     steps:
       - name: Prepare container
         run: |
+          # Sama seperti Prepare container di job build: fallback ke
+          # repo-default kalau bootstrap via repo-ci gagal (mis. reposync
+          # 404), supaya publish gak mati gara-gara flake sesaat di
+          # upstream mirror.
           mkdir -p /etc/xbps.d && cp /usr/share/xbps.d/*-repository-*.conf /etc/xbps.d/
           sed -i 's|repo-default|repo-ci|g' /etc/xbps.d/*-repository-*.conf
-          xbps-install -Syu xbps && xbps-install -yu && xbps-install -y curl
-          curl -fsSL https://github.com/cli/cli/releases/download/v2.67.0/gh_2.67.0_linux_amd64.tar.gz | tar -xz -C /tmp
+          bootstrap_xbps() {
+            xbps-install -Syu xbps && xbps-install -yu && xbps-install -y curl
+          }
+          if ! bootstrap_xbps; then
+            echo "::warning::repo-ci gagal, fallback ke repo-default"
+            sed -i 's|repo-ci|repo-default|g' /etc/xbps.d/*-repository-*.conf
+            bootstrap_xbps
+          fi
+          curl --retry 5 --retry-delay 3 --retry-all-errors -fsSL \
+            https://github.com/cli/cli/releases/download/v2.67.0/gh_2.67.0_linux_amd64.tar.gz \
+            | tar -xz -C /tmp
           install -m755 /tmp/gh_2.67.0_linux_amd64/bin/gh /usr/local/bin/gh
 
       - name: Download all build artifacts
