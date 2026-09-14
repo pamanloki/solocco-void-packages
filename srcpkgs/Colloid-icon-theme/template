@@ -11,7 +11,7 @@ license="GPL-3.0-only"
 homepage="https://github.com/vinceliuice/Colloid-icon-theme"
 changelog="https://github.com/vinceliuice/Colloid-icon-theme/tags"
 distfiles="https://github.com/vinceliuice/Colloid-icon-theme/archive/refs/tags/${_tag}.tar.gz"
-checksum=4ca64508a95c09e011671ce5fe31967f75782c0645d1a80e545a92c0a70568d0
+checksum=367c3ce3ab85721e41ca9aa4fccd1761ec236d1b8cd7daf65f5e9ec88c1a8a15
 
 do_install() {
 	# Varian default (base + light + dark) ke DESTDIR.
