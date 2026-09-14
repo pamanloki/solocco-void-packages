@@ -273,6 +273,16 @@
       "fallback_tags": true,
       "dash_strip": true,
       "set_tag_var": true
+    },
+    {
+      "package": "Colloid-icon-theme",
+      "restricted": false,
+      "build": true,
+      "strategy": "source-tarball",
+      "repo": "vinceliuice/Colloid-icon-theme",
+      "fallback_tags": true,
+      "dash_strip": true,
+      "set_tag_var": true
     }
   ]
 }
