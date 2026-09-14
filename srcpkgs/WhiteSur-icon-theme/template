@@ -1,0 +1,23 @@
+# Template file for 'WhiteSur-icon-theme'
+pkgname=WhiteSur-icon-theme
+version=20260910
+revision=1
+_tag="2026-09-10"
+hostmakedepends="gtk-update-icon-cache"
+depends="hicolor-icon-theme"
+short_desc="MacOS Big Sur style icon theme for Linux desktops"
+maintainer="solocco <noreply@github.com>"
+license="GPL-3.0-only"
+homepage="https://github.com/vinceliuice/WhiteSur-icon-theme"
+changelog="https://github.com/vinceliuice/WhiteSur-icon-theme/tags"
+distfiles="https://github.com/vinceliuice/WhiteSur-icon-theme/archive/refs/tags/${_tag}.tar.gz"
+checksum=84a4dd320d93faf8602e72d0614d6faeca43f8d336750fec7b39fd90e26bf8e9
+
+do_install() {
+	# Varian default (base + light + dark) ke DESTDIR.
+	bash ./install.sh -d "${DESTDIR}/usr/share/icons"
+
+	# Jangan ikut-bundle icon-theme.cache: trigger gtk-icon-cache milik xbps
+	# yang meregenerasinya saat paket dipasang di sistem pengguna.
+	find "${DESTDIR}/usr/share/icons" -name 'icon-theme.cache' -delete
+}
