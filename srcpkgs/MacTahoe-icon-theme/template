@@ -11,7 +11,7 @@ license="GPL-3.0-only"
 homepage="https://github.com/vinceliuice/MacTahoe-icon-theme"
 changelog="https://github.com/vinceliuice/MacTahoe-icon-theme/tags"
 distfiles="https://github.com/vinceliuice/MacTahoe-icon-theme/archive/refs/tags/${_tag}.tar.gz"
-checksum=6d24607a425656b86e710d8fed5e8fa631ff0a963dc665693b909ea4a3130542
+checksum=6330369e9e10a28cfc8da598ebf63a7204be705403519963ff84e1cb84719d35
 
 do_install() {
 	# Varian default (base + light + dark) plus cursor theme, ke DESTDIR.
