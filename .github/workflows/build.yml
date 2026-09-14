@@ -215,9 +215,19 @@ jobs:
           export PATH="/opt/xbps/usr/bin/:$PATH"
           cd void-packages
 
+          log=/tmp/build-${{ matrix.package }}.log
+          : > "$log"
+          set -o pipefail
+
           max_attempts=3
           attempt=1
-          until sudo -Eu builder ./xbps-src -j"$(nproc)" pkg ${{ matrix.package }}; do
+          until sudo -Eu builder ./xbps-src -j"$(nproc)" pkg ${{ matrix.package }} 2>&1 | tee -a "$log"; do
+            # Checksum mismatch gak bakal sembuh dengan retry (distfile-nya
+            # emang beda hash) -- langsung stop biar cepat jatuh ke autofix.
+            if grep -q 'SHA256 mismatch' "$log"; then
+              echo "::warning::Checksum mismatch terdeteksi, skip retry -> serahkan ke autofix."
+              exit 1
+            fi
             if [ "$attempt" -ge "$max_attempts" ]; then
               echo "::error::Build ${{ matrix.package }} gagal setelah $attempt percobaan."
               exit 1
@@ -227,6 +237,57 @@ jobs:
             echo "::warning::Build gagal (attempt $((attempt - 1))/$max_attempts), retry dalam ${wait_s}s..."
             sleep "$wait_s"
           done
+
+      # Kalau build gagal HANYA karena SHA256 mismatch pada template
+      # ber-checksum satu baris (mis. source-tarball: tarball GitHub gzip-nya
+      # beda byte dari git archive), ekstrak checksum yang BENAR (yang dihitung
+      # xbps dari file asli) lalu simpan sebagai artifact. Job autofix di akhir
+      # bakal nulis balik ke template + commit + re-dispatch build.
+      # Font (checksum ganda / dikutip) sengaja di-skip: replace aman butuh
+      # penanganan multi-baris yang beda.
+      - name: Capture checksum fix on mismatch
+        id: cksum
+        if: steps.filter.outputs.run == 'true' && failure()
+        run: |
+          PKG="${{ matrix.package }}"
+          log=/tmp/build-${PKG}.log
+          tmpl="main-repo/srcpkgs/${PKG}/template"
+          [ -f "$log" ] || exit 0
+
+          nmis=$(grep -c 'SHA256 mismatch' "$log" || true)
+          if [ "$nmis" != "1" ]; then
+            echo "Mismatch count=$nmis (bukan 1), skip autofix."
+            exit 0
+          fi
+          if ! grep -qE '^checksum=[0-9a-f]{64}$' "$tmpl"; then
+            echo "Template $PKG bukan checksum satu baris (mungkin font/multi), skip autofix."
+            exit 0
+          fi
+
+          newsum=$(grep -A1 'SHA256 mismatch' "$log" | grep -oE '[0-9a-f]{64}' | head -1)
+          if [ -z "$newsum" ]; then
+            echo "Gagal ekstrak checksum baru, skip."
+            exit 0
+          fi
+          cur=$(grep -oE '^checksum=[0-9a-f]{64}$' "$tmpl" | cut -d= -f2)
+          if [ "$newsum" = "$cur" ]; then
+            echo "Checksum template udah sama dengan hasil xbps -- mismatch bukan soal checksum, skip."
+            exit 0
+          fi
+
+          mkdir -p /tmp/cksum-fixes
+          printf '%s' "$newsum" > "/tmp/cksum-fixes/${PKG}"
+          echo "Autofix disiapkan buat $PKG: $newsum"
+          echo "has_fix=true" >> "$GITHUB_OUTPUT"
+
+      - name: Upload checksum fix
+        if: steps.filter.outputs.run == 'true' && failure() && steps.cksum.outputs.has_fix == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cksum-fix-${{ matrix.package }}
+          path: /tmp/cksum-fixes/${{ matrix.package }}
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Upload build artifacts
         if: steps.filter.outputs.run == 'true'
@@ -238,6 +299,86 @@ jobs:
             void-packages/hostdir/binpkgs/**/*.xbps.sig2
           if-no-files-found: error
           retention-days: 1
+
+  autofix-checksums:
+    name: Autofix checksums
+    needs: [setup, build]
+    # Cuma jalan kalau ada job build yang gagal (kandidat mismatch checksum).
+    if: ${{ !cancelled() && needs.build.result == 'failure' }}
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Download checksum fixes
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cksum-fix-*
+          path: /tmp/fixes
+          merge-multiple: true
+
+      - name: Apply checksum fixes
+        id: apply
+        run: |
+          if [ ! -d /tmp/fixes ] || [ -z "$(ls -A /tmp/fixes 2>/dev/null)" ]; then
+            echo "Gak ada checksum fix, selesai."
+            exit 0
+          fi
+          fixed=""
+          for f in /tmp/fixes/*; do
+            pkg=$(basename "$f")
+            newsum=$(tr -dc '0-9a-f' < "$f")
+            tmpl="srcpkgs/${pkg}/template"
+            # Guard ulang: template ada & checksum satu baris.
+            [ -f "$tmpl" ] || { echo "Skip $pkg: template gak ada."; continue; }
+            grep -qE '^checksum=[0-9a-f]{64}$' "$tmpl" || { echo "Skip $pkg: bukan checksum satu baris."; continue; }
+            [ -n "$newsum" ] || { echo "Skip $pkg: checksum kosong."; continue; }
+            sed -i "s/^checksum=[0-9a-f]\{64\}$/checksum=${newsum}/" "$tmpl"
+            if ! git diff --quiet -- "$tmpl"; then
+              echo "Fixed $pkg -> $newsum"
+              fixed="$fixed $pkg"
+            fi
+          done
+          fixed=$(echo "$fixed" | xargs || true)
+          echo "fixed=$fixed" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push fixes
+        if: steps.apply.outputs.fixed != ''
+        env:
+          FIXED: ${{ steps.apply.outputs.fixed }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- srcpkgs/*/template
+          git commit -m "ci: autofix checksum untuk ${FIXED}" \
+                     -m "Checksum di-generate dari nilai actual yang dihitung xbps-src saat build (SHA256 mismatch) -- otomatis dari workflow."
+          # GITHUB_TOKEN push tidak men-trigger workflow lain (anti-rekursi),
+          # jadi build di-dispatch manual di step berikutnya.
+          for i in 1 2 3 4; do
+            git push origin main && break
+            echo "push gagal, retry ($i)..."; sleep $((i * 2))
+            git pull --rebase origin main || true
+          done
+
+      - name: Re-dispatch build for fixed packages
+        if: steps.apply.outputs.fixed != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FIXED: ${{ steps.apply.outputs.fixed }}
+        run: |
+          for pkg in $FIXED; do
+            echo "Dispatch build buat $pkg"
+            gh workflow run build.yml \
+              --repo "${GITHUB_REPOSITORY}" \
+              --ref main \
+              -f package="$pkg" || echo "::warning::gagal dispatch $pkg"
+          done
 
   publish:
     name: Publish repo
