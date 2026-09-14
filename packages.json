@@ -247,6 +247,12 @@
       "build": true,
       "strategy": "source-tarball",
       "repo": "WillPower3309/swayfx"
+    },
+    {
+      "package": "quickshell-bin",
+      "restricted": false,
+      "build": true,
+      "strategy": "static"
     }
   ]
 }
