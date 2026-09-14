@@ -1,0 +1,23 @@
+# Template file for 'MacTahoe-icon-theme'
+pkgname=MacTahoe-icon-theme
+version=20260910
+revision=1
+_tag="2026-09-10"
+hostmakedepends="gtk-update-icon-cache"
+depends="hicolor-icon-theme"
+short_desc="MacOS Tahoe style icon theme for Linux desktops"
+maintainer="solocco <noreply@github.com>"
+license="GPL-3.0-only"
+homepage="https://github.com/vinceliuice/MacTahoe-icon-theme"
+changelog="https://github.com/vinceliuice/MacTahoe-icon-theme/tags"
+distfiles="https://github.com/vinceliuice/MacTahoe-icon-theme/archive/refs/tags/${_tag}.tar.gz"
+checksum=6d24607a425656b86e710d8fed5e8fa631ff0a963dc665693b909ea4a3130542
+
+do_install() {
+	# Varian default (base + light + dark) plus cursor theme, ke DESTDIR.
+	bash ./install.sh -d "${DESTDIR}/usr/share/icons"
+
+	# Jangan ikut-bundle icon-theme.cache: trigger gtk-icon-cache milik xbps
+	# yang meregenerasinya saat paket dipasang di sistem pengguna.
+	find "${DESTDIR}/usr/share/icons" -name 'icon-theme.cache' -delete
+}
