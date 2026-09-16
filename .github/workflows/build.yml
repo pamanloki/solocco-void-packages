@@ -546,6 +546,52 @@ jobs:
               "$f" || true
           done
 
+      - name: Smoke test published packages
+        # Verify what we just published actually installs from the real repo:
+        # add the solocco repo, sync (import key), and dry-run install every
+        # package we just built. Catches publish-time breakage immediately
+        # (bad repodata, signing/key issue, unsatisfiable deps) instead of
+        # waiting for a user or the daily reconcile.
+        if: steps.check.outputs.has_pkgs == 'true'
+        env:
+          PKG_LIST: ${{ steps.built-pkgs.outputs.list }}
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          export PATH="/opt/xbps/usr/bin/:$PATH"
+          echo "repository=https://github.com/${GITHUB_REPOSITORY}/releases/download/repo-latest" \
+            > /etc/xbps.d/10-solocco.conf
+          # `yes |` auto-imports the repo RSA key non-interactively. If sync
+          # can't read our signed repodata, the key/signature is broken.
+          yes | xbps-install -S >/tmp/smoke-sync.log 2>&1 || true
+
+          fail=""
+          for pkg in $PKG_LIST; do
+            out=$(xbps-install -Sn "$pkg" 2>&1 || true)
+            if echo "$out" | grep -qiE 'unresolvable shlib|broken|not found in repository pool'; then
+              echo "::warning::smoke test: $pkg"
+              echo "$out" | tail -5
+              fail="$fail $pkg"
+            fi
+          done
+          fail=$(echo "$fail" | xargs || true)
+
+          if [ -n "$fail" ]; then
+            run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            nl=$(printf '\nx'); nl=${nl%x}
+            body="🔴 <b>Smoke test failed after publish</b>${nl}${nl}These just-published packages do not install cleanly:"
+            for p in $fail; do body="${body}${nl}• <code>${p}</code>"; done
+            body="${body}${nl}${nl}<a href=\"${run_url}\">View workflow run</a>"
+            if [ -n "$TG_TOKEN" ] && [ -n "$TG_CHAT" ]; then
+              curl -sS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+                -d chat_id="${TG_CHAT}" -d parse_mode="HTML" \
+                -d disable_web_page_preview="true" --data-urlencode "text=${body}" || true
+            fi
+            echo "::error::Smoke test failed for: $fail"
+            exit 1
+          fi
+          echo "Smoke test passed for: $PKG_LIST"
+
       - name: Notify success to Telegram
         # Only when publish succeeded AND new packages were actually uploaded
         # (has_pkgs). success() is explicit because adding `if:` drops the

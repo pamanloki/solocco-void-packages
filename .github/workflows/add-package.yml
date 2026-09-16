@@ -1,0 +1,180 @@
+name: Add package
+
+# Nambah paket dari GitHub web UI / app -- tanpa terminal, tanpa clone.
+# Actions -> "Add package" -> Run workflow -> isi form.
+# Dia bakal: jalanin scripts/new-template.sh, commit + push ke main, lalu
+# trigger build. Checksum (kalau placeholder) dibenerin otomatis sama autofix.
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: 'Nama paket (folder srcpkgs). Buat "from-void": nama paket di Void.'
+        required: true
+      mode:
+        description: 'Cara bikin'
+        type: choice
+        default: from-void
+        options: [from-void, source-tarball, binary-asset, icon-theme, font, static]
+      repo:
+        description: 'GitHub owner/repo (source-tarball / binary-asset / icon-theme)'
+        required: false
+      version:
+        description: 'Versi (source-tarball / binary-asset / font / static)'
+        required: false
+      tag:
+        description: 'Tag, mis. 2026-09-10 (icon-theme)'
+        required: false
+      asset:
+        description: 'Nama asset, pakai {version} (binary-asset), mis. foo-{version}-x86_64.tar.gz'
+        required: false
+      build_style:
+        description: 'build_style (source-tarball): cmake / meson / gnu-configure / go / cargo / python3-module'
+        required: false
+      font:
+        description: 'Nama font (font)'
+        required: false
+      desc:
+        description: 'short_desc (deskripsi singkat)'
+        required: false
+      license:
+        description: 'license, mis. MIT / GPL-3.0-only'
+        required: false
+      build:
+        description: 'Ikut di-build CI?'
+        type: boolean
+        default: true
+      restricted:
+        description: 'Paket restricted?'
+        type: boolean
+        default: false
+      fallback_tags:
+        description: '(source-tarball) upstream cuma punya tag tanpa Release'
+        type: boolean
+        default: false
+      dash_strip:
+        description: '(source-tarball) buang tanda "-" dari versi'
+        type: boolean
+        default: false
+      set_tag_var:
+        description: '(source-tarball) tulis _tag ke template'
+        type: boolean
+        default: false
+      url_v_prefix:
+        description: '(binary-asset) URL download pakai prefix "v"'
+        type: boolean
+        default: false
+      quoted_checksum:
+        description: '(binary-asset) checksum pakai tanda kutip'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  add:
+    name: Scaffold & register
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Run scaffolder
+        id: gen
+        env:
+          # Semua input lewat env (bukan interpolasi ${{ }} langsung ke shell)
+          # supaya aman dari injection.
+          I_NAME: ${{ inputs.name }}
+          I_MODE: ${{ inputs.mode }}
+          I_REPO: ${{ inputs.repo }}
+          I_VERSION: ${{ inputs.version }}
+          I_TAG: ${{ inputs.tag }}
+          I_ASSET: ${{ inputs.asset }}
+          I_BUILD_STYLE: ${{ inputs.build_style }}
+          I_FONT: ${{ inputs.font }}
+          I_DESC: ${{ inputs.desc }}
+          I_LICENSE: ${{ inputs.license }}
+          I_BUILD: ${{ inputs.build }}
+          I_RESTRICTED: ${{ inputs.restricted }}
+          I_FALLBACK_TAGS: ${{ inputs.fallback_tags }}
+          I_DASH_STRIP: ${{ inputs.dash_strip }}
+          I_SET_TAG_VAR: ${{ inputs.set_tag_var }}
+          I_URL_V_PREFIX: ${{ inputs.url_v_prefix }}
+          I_QUOTED_CHECKSUM: ${{ inputs.quoted_checksum }}
+        run: |
+          set -euo pipefail
+          args=()
+          if [ "$I_MODE" = "from-void" ]; then
+            args+=(--from-void "$I_NAME")
+          else
+            args+=(--name "$I_NAME" --strategy "$I_MODE")
+            [ -n "$I_REPO" ]        && args+=(--repo "$I_REPO")
+            [ -n "$I_VERSION" ]     && args+=(--version "$I_VERSION")
+            [ -n "$I_TAG" ]         && args+=(--tag "$I_TAG")
+            [ -n "$I_ASSET" ]       && args+=(--asset "$I_ASSET")
+            [ -n "$I_BUILD_STYLE" ] && args+=(--build-style "$I_BUILD_STYLE")
+            [ -n "$I_FONT" ]        && args+=(--font "$I_FONT")
+            [ -n "$I_DESC" ]        && args+=(--desc "$I_DESC")
+            [ -n "$I_LICENSE" ]     && args+=(--license "$I_LICENSE")
+            [ "$I_FALLBACK_TAGS" = "true" ] && args+=(--fallback-tags)
+            [ "$I_DASH_STRIP" = "true" ]    && args+=(--dash-strip)
+            [ "$I_SET_TAG_VAR" = "true" ]   && args+=(--set-tag-var)
+            [ "$I_URL_V_PREFIX" = "true" ]  && args+=(--url-v-prefix)
+            [ "$I_QUOTED_CHECKSUM" = "false" ] && args+=(--quoted-checksum false)
+          fi
+          # build:false dan restricted berlaku di kedua mode.
+          [ "$I_BUILD" = "false" ]      && args+=(--build false)
+          [ "$I_RESTRICTED" = "true" ]  && args+=(--restricted)
+
+          chmod +x scripts/new-template.sh
+          echo "Menjalankan: scripts/new-template.sh ${args[*]}"
+          scripts/new-template.sh "${args[@]}"
+          echo "name=$I_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Commit & push
+        env:
+          NAME: ${{ inputs.name }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "srcpkgs/${NAME}" packages.json
+          git commit -m "Add package ${NAME} (${MODE})" \
+                     -m "Scaffolded via the Add package workflow."
+          for i in 1 2 3 4; do
+            git push origin HEAD:main && break
+            echo "push gagal, retry ($i)..."; sleep $((i * 2))
+            git pull --rebase origin main || true
+          done
+
+      - name: Dispatch build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NAME: ${{ inputs.name }}
+        run: |
+          # Push via GITHUB_TOKEN gak nge-trigger build (anti-rekursi), jadi
+          # dispatch manual buat paket yang baru ditambah.
+          echo "Dispatch build buat: $NAME"
+          gh workflow run build.yml \
+            --repo "${GITHUB_REPOSITORY}" \
+            --ref main \
+            -f package="$NAME"
+
+      - name: Summary
+        env:
+          NAME: ${{ inputs.name }}
+        run: |
+          {
+            echo "## Added \`$NAME\`"
+            echo "Template + packages.json entry dibuat, di-push ke main, build di-dispatch."
+            echo ""
+            echo "Cek tab Actions buat progres build. Kalau checksum masih placeholder,"
+            echo "job autofix bakal benerin otomatis."
+            echo ""
+            echo "Kalau perlu isi depends / do_install, edit \`srcpkgs/$NAME/template\`."
+          } >> "$GITHUB_STEP_SUMMARY"
