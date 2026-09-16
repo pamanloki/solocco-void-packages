@@ -226,29 +226,158 @@ jobs:
             --ref main \
             -f package="$BUMPED"
 
+  hygiene:
+    name: Repo hygiene report
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Scan for orphans & redundant overrides
+        id: scan
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          export LC_ALL=C
+
+          # --- Published base package names (strip version + arch + .xbps) ---
+          pub=$(gh release view repo-latest --repo "${GITHUB_REPOSITORY}" \
+                  --json assets --jq '.assets[].name' 2>/dev/null \
+                | grep '\.xbps$' | sed 's/-[0-9].*//' | sort -u || true)
+
+          # --- Expected names: every package + its subpackages (*_package()) ---
+          expected=""
+          for pkg in $(jq -r '.packages[].package' packages.json); do
+            expected="$expected $pkg"
+            t="srcpkgs/${pkg}/template"
+            [ -f "$t" ] && expected="$expected $(grep -oE '^[A-Za-z0-9._+-]+_package\(\)' "$t" | sed 's/_package()//' | xargs)"
+          done
+
+          # --- Orphans: published but not expected (removed/renamed packages) ---
+          orphans=""
+          for b in $pub; do
+            [ -n "$b" ] || continue
+            case " $expected " in *" $b "*) ;; *) orphans="$orphans $b";; esac
+          done
+          orphans=$(echo "$orphans" | xargs || true)
+
+          # --- Redundant overrides: packages tagged override_of where Void has
+          #     caught up (Void version >= ours) so our stopgap can be dropped ---
+          redundant=""
+          while read -r row; do
+            [ -n "$row" ] || continue
+            pkg=$(echo "$row" | jq -r '.package')
+            vpkg=$(echo "$row" | jq -r '.override_of')
+            t="srcpkgs/${pkg}/template"
+            [ -f "$t" ] || continue
+            our=$(grep -m1 '^version=' "$t" | cut -d= -f2 | tr -d '"')
+            vt=$(curl -fsSL "https://raw.githubusercontent.com/void-linux/void-packages/master/srcpkgs/${vpkg}/template" 2>/dev/null || true)
+            [ -n "$vt" ] || continue
+            vver=$(printf '%s\n' "$vt" | grep -m1 '^version=' | cut -d= -f2 | tr -d '"')
+            [ -n "$vver" ] || continue
+            min=$(printf '%s\n%s\n' "$our" "$vver" | sort -V | head -1)
+            if [ "$min" = "$our" ]; then
+              redundant="${redundant}${pkg}\t${vpkg}\t${vver}\t${our}\n"
+            fi
+          done <<EOF
+          $(jq -c '.packages[] | select(.override_of != null)' packages.json)
+          EOF
+          redundant=$(printf '%b' "$redundant")
+
+          # --- Step summary (always) ---
+          {
+            echo "## Repo hygiene"
+            if [ -z "$orphans" ] && [ -z "$redundant" ]; then
+              echo "Clean. No orphan assets, no redundant overrides."
+            else
+              if [ -n "$orphans" ]; then
+                echo "### Orphan assets (in repo, not in packages.json)"
+                for o in $orphans; do echo "- \`$o\`"; done
+              fi
+              if [ -n "$redundant" ]; then
+                echo "### Redundant overrides (Void caught up)"
+                printf '%s\n' "$redundant" | while IFS="$(printf '\t')" read -r p vp vv ov; do
+                  [ -n "$p" ] && echo "- \`$p\` — Void ships \`$vp\` $vv (>= $ov)"
+                done
+              fi
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # --- Build Telegram HTML body (only if there are findings) ---
+          if [ -z "$orphans" ] && [ -z "$redundant" ]; then
+            echo "has_findings=false" >> "$GITHUB_OUTPUT"
+            echo "Repo clean."
+            exit 0
+          fi
+
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          nl=$(printf '\nx'); nl=${nl%x}
+          body="🧹 <b>Repo hygiene</b>"
+          if [ -n "$orphans" ]; then
+            body="${body}${nl}${nl}<b>Orphan assets</b> — in the repo but not in packages.json"
+            for o in $orphans; do body="${body}${nl}• <code>${o}</code>"; done
+            body="${body}${nl}<i>Delete from the repo-latest release if no longer wanted.</i>"
+          fi
+          if [ -n "$redundant" ]; then
+            body="${body}${nl}${nl}<b>Redundant overrides</b> — Void has caught up"
+            while IFS="$(printf '\t')" read -r p vp vv ov; do
+              [ -n "$p" ] || continue
+              body="${body}${nl}• <code>${p}</code> → Void ships <code>${vp}</code> ${vv} (≥ ${ov})"
+            done <<INNER
+          $(printf '%s\n' "$redundant")
+          INNER
+          fi
+          body="${body}${nl}${nl}<a href=\"${run_url}\">View workflow run</a>"
+
+          {
+            echo "has_findings=true"
+            echo "body<<__TG_EOF__"
+            echo "$body"
+            echo "__TG_EOF__"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Notify hygiene findings to Telegram
+        if: steps.scan.outputs.has_findings == 'true'
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          BODY: ${{ steps.scan.outputs.body }}
+        run: |
+          if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT" ]; then
+            echo "::warning::Telegram secrets unset, skipping notification."
+            exit 0
+          fi
+          curl -sS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d chat_id="${TG_CHAT}" \
+            -d parse_mode="HTML" \
+            -d disable_web_page_preview="true" \
+            --data-urlencode "text=${BODY}"
+
   notify:
     name: Notify on failure
-    needs: [reconcile, shlib-rebuild]
+    needs: [reconcile, shlib-rebuild, hygiene]
     # Cuma kalau job reconcile/shlib-rebuild GAGAL (mis. GH API error, dispatch
     # ditolak, container error) -- biar yang mati gak lolos diam-diam. Jalur
     # sukses (dispatch normal) TIDAK memicu notif ini.
     if: ${{ failure() }}
     runs-on: ubuntu-latest
     steps:
-      - name: Kirim notifikasi Telegram
+      - name: Notify Telegram
         env:
           TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT" ]; then
-            echo "::warning::Secret Telegram belum diset, skip notifikasi."
+            echo "::warning::Telegram secrets unset, skipping notification."
             exit 0
           fi
           run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          text=$(printf '%s\n%s\n%s' \
-            "🔴 <b>Reconcile GAGAL</b>" \
-            "Repo: ${GITHUB_REPOSITORY}" \
-            "${run_url}")
+          nl=$(printf '\nx'); nl=${nl%x}
+          text="🔴 <b>Reconcile failed</b>${nl}${nl}Repo: <code>${GITHUB_REPOSITORY}</code>${nl}${nl}<a href=\"${run_url}\">View workflow run</a>"
           curl -sS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
             -d chat_id="${TG_CHAT}" \
             -d parse_mode="HTML" \

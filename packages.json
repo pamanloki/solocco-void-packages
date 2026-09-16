@@ -245,13 +245,15 @@
       "restricted": false,
       "build": true,
       "strategy": "source-tarball",
-      "repo": "WillPower3309/swayfx"
+      "repo": "WillPower3309/swayfx",
+      "override_of": "swayfx"
     },
     {
       "package": "quickshell-bin",
       "restricted": false,
       "build": true,
-      "strategy": "static"
+      "strategy": "static",
+      "override_of": "quickshell"
     },
     {
       "package": "MacTahoe-icon-theme",
