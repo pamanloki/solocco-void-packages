@@ -38,8 +38,7 @@
       "build": false,
       "strategy": "source-tarball",
       "repo": "malbiruk/driftwm",
-      "fallback_tags": true,
-      "reset_revision": false
+      "fallback_tags": true
     },
     {
       "package": "superfile",
