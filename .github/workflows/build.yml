@@ -211,13 +211,17 @@ jobs:
 
       - name: Build ${{ matrix.package }}
         if: steps.filter.outputs.run == 'true'
+        # Wajib bash: container void default-nya sh (dash) yang gak punya
+        # `set -o pipefail`, sedangkan kita butuh exit status xbps-src dari
+        # pipe `... | tee`. `shell: bash` bikin GitHub jalanin
+        # `bash --noprofile --norc -eo pipefail {0}` -- pipefail udah aktif.
+        shell: bash
         run: |
           export PATH="/opt/xbps/usr/bin/:$PATH"
           cd void-packages
 
           log=/tmp/build-${{ matrix.package }}.log
           : > "$log"
-          set -o pipefail
 
           max_attempts=3
           attempt=1
