@@ -1,0 +1,124 @@
+name: Reconcile builds
+
+# Nutup celah: build.yml cuma ke-trigger kalau ada perubahan file di
+# srcpkgs/**. Kalau template udah versi terbaru tapi build-nya gagal (dep
+# belum kebuild, flake, repo-ci down, run kebatalan concurrency), gak ada
+# yang nge-trigger ulang tanpa harus bump revision manual.
+#
+# Workflow ini bandingin "apa yang template minta" (version_revision) vs
+# "apa yang bener-bener kepublish" di release repo-latest. Package build:true
+# yang binary-nya belum nangkring = belum kebuild -> auto-dispatch build.yml
+# buat package-package itu (SATU dispatch, daftar spasi-pisah, biar gak saling
+# batalin di concurrency group). Otomatis berhenti begitu binary-nya masuk.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 00:30 UTC (07:30 WIB), ~30 menit sesudah Update Check (00:00) supaya
+    # template versi baru udah ter-push duluan.
+    - cron: '30 0 * * *'
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  reconcile:
+    name: Reconcile published vs template
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Find packages missing from repo
+        id: scan
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Daftar aset xbps yang udah kepublish. Kalau release belum ada,
+          # anggap kosong (semua package bakal kehitung missing).
+          assets=$(mktemp)
+          gh release view repo-latest \
+            --repo "${GITHUB_REPOSITORY}" \
+            --json assets \
+            --jq '.assets[].name' > "$assets" 2>/dev/null || : > "$assets"
+
+          missing=""
+          while read -r pkg_json; do
+            pkg=$(echo "$pkg_json" | jq -r '.package')
+            tpl="srcpkgs/${pkg}/template"
+            if [ ! -f "$tpl" ]; then
+              echo "::warning::template $pkg gak ada, skip."
+              continue
+            fi
+            ver=$(grep -m1 '^version=' "$tpl" | cut -d= -f2 | tr -d '"')
+            rev=$(grep -m1 '^revision=' "$tpl" | cut -d= -f2 | tr -d '"')
+            # Prefix diakhiri titik biar revision persis: "pkg-1.2_1." gak
+            # ke-match sama "pkg-1.2_10.x86_64.xbps".
+            prefix="${pkg}-${ver}_${rev}."
+            if grep -qF "$prefix" "$assets"; then
+              echo "OK       $pkg ${ver}_${rev}"
+            else
+              echo "MISSING  $pkg ${ver}_${rev}"
+              missing="$missing $pkg"
+            fi
+          done <<EOF
+          $(jq -c '.packages[] | select(.build != false)' packages.json)
+          EOF
+
+          missing=$(echo "$missing" | xargs || true)
+          echo "missing=$missing" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Reconcile"
+            if [ -n "$missing" ]; then
+              echo "Package belum kepublish (di-dispatch rebuild):"
+              for p in $missing; do echo "- \`$p\`"; done
+            else
+              echo "Semua package build:true udah kepublish sesuai template. Gak ada yang perlu di-rebuild."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Dispatch build for missing packages
+        if: steps.scan.outputs.missing != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MISSING: ${{ steps.scan.outputs.missing }}
+        run: |
+          # SATU dispatch dengan daftar package (build.yml filter nerima
+          # daftar spasi-pisah). Dispatch per-package bakal saling dibatalkan
+          # di concurrency group release-publish-main.
+          echo "Dispatch rebuild buat: $MISSING"
+          gh workflow run build.yml \
+            --repo "${GITHUB_REPOSITORY}" \
+            --ref main \
+            -f package="$MISSING"
+
+  notify:
+    name: Notify on failure
+    needs: reconcile
+    # Cuma kalau job reconcile GAGAL (mis. GH API error, dispatch ditolak) --
+    # biar rekonsiliasi yang mati gak lolos diam-diam. Package yang missing
+    # tapi ke-dispatch normal TIDAK memicu notif ini (itu jalur sukses).
+    if: ${{ failure() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kirim notifikasi Telegram
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT" ]; then
+            echo "::warning::Secret Telegram belum diset, skip notifikasi."
+            exit 0
+          fi
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          text=$(printf '%s\n%s\n%s' \
+            "🔴 <b>Reconcile GAGAL</b>" \
+            "Repo: ${GITHUB_REPOSITORY}" \
+            "${run_url}")
+          curl -sS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d chat_id="${TG_CHAT}" \
+            -d parse_mode="HTML" \
+            -d disable_web_page_preview="true" \
+            --data-urlencode "text=${text}"

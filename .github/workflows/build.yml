@@ -101,10 +101,17 @@ jobs:
           INPUT="${{ github.event.inputs.package }}"
           CHANGED="${{ needs.setup.outputs.changed_pkgs }}"
           if [ "$EVENT" = "workflow_dispatch" ]; then
-            if [ "$INPUT" = "$PKG" ] || [ "$INPUT" = "all" ]; then
+            # INPUT bisa "all", satu nama package, atau DAFTAR nama package
+            # dipisah spasi (dipakai oleh autofix & reconcile biar cukup 1
+            # dispatch buat banyak package -- kalau dispatch per-package,
+            # run-run itu berbagi concurrency group dan sebagian dibatalkan).
+            if [ "$INPUT" = "all" ]; then
               echo "run=true" >> $GITHUB_OUTPUT
             else
-              echo "run=false" >> $GITHUB_OUTPUT
+              case " $INPUT " in
+                *" $PKG "*) echo "run=true" >> $GITHUB_OUTPUT ;;
+                *)          echo "run=false" >> $GITHUB_OUTPUT ;;
+              esac
             fi
           elif [ "$EVENT" = "push" ]; then
             # Daftar package yang berubah dikomputasi di job setup dari
@@ -376,13 +383,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FIXED: ${{ steps.apply.outputs.fixed }}
         run: |
-          for pkg in $FIXED; do
-            echo "Dispatch build buat $pkg"
-            gh workflow run build.yml \
-              --repo "${GITHUB_REPOSITORY}" \
-              --ref main \
-              -f package="$pkg" || echo "::warning::gagal dispatch $pkg"
-          done
+          # Satu dispatch dengan DAFTAR package (bukan per-package) supaya
+          # gak saling batalin di concurrency group release-publish-main.
+          echo "Dispatch build buat: $FIXED"
+          gh workflow run build.yml \
+            --repo "${GITHUB_REPOSITORY}" \
+            --ref main \
+            -f package="$FIXED"
 
   publish:
     name: Publish repo
