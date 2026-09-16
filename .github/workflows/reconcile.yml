@@ -94,12 +94,144 @@ jobs:
             --ref main \
             -f package="$MISSING"
 
+  shlib-rebuild:
+    name: Rebuild broken-shlib packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    container:
+      image: ghcr.io/void-linux/void-glibc-full
+      options: --privileged
+      volumes:
+        - /dev:/dev
+    steps:
+      # Deteksi package yang binary-nya udah kepublish & versi terbaru TAPI
+      # rusak karena shlib gak resolvable lagi (mis. void bump Qt: pcsx2 /
+      # quickshell-bin yang kelink Qt private API jadi "broken, unresolvable
+      # shlib"). Reconcile gak nangkep ini (versinya udah kepublish); di sini
+      # kita reproduksi gejalanya via dry-run install, lalu BUMP REVISION +
+      # rebuild. Bump wajib supaya pkgver berubah dan client beneran upgrade
+      # ke binary yang udah di-relink (rebuild diam-diam dengan pkgver sama
+      # gak akan ditarik xbps).
+      - name: Prepare container
+        run: |
+          # Bootstrap sama kayak build.yml (repo-ci + fallback repo-default)
+          # supaya cek shlib pakai set repo yang SAMA dengan yang dipakai
+          # build -- kalau broken di sini, rebuild bakal beneran mecahin.
+          mkdir -p /etc/xbps.d && cp /usr/share/xbps.d/*-repository-*.conf /etc/xbps.d/
+          sed -i 's|repo-default|repo-ci|g' /etc/xbps.d/*-repository-*.conf
+          bootstrap() { xbps-install -Syu xbps && xbps-install -yu && xbps-install -y curl git jq; }
+          if ! bootstrap; then
+            echo "::warning::repo-ci gagal, fallback ke repo-default"
+            sed -i 's|repo-ci|repo-default|g' /etc/xbps.d/*-repository-*.conf
+            bootstrap
+          fi
+          curl --retry 5 --retry-delay 3 --retry-all-errors -fsSL \
+            https://github.com/cli/cli/releases/download/v2.67.0/gh_2.67.0_linux_amd64.tar.gz \
+            | tar -xz -C /tmp
+          install -m755 /tmp/gh_2.67.0_linux_amd64/bin/gh /usr/local/bin/gh
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Detect broken-shlib packages
+        id: detect
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          export PATH="/opt/xbps/usr/bin/:$PATH"
+          # Tambah repo solocco (tempat binary kita) lalu sync. `yes |` buat
+          # auto-import RSA key repo secara non-interaktif.
+          echo "repository=https://github.com/${GITHUB_REPOSITORY}/releases/download/repo-latest" \
+            > /etc/xbps.d/10-solocco.conf
+          yes | xbps-install -S >/tmp/sync.log 2>&1 || true
+
+          # Aset yang udah kepublish (buat guard anti double-bump).
+          assets=$(gh release view repo-latest --repo "${GITHUB_REPOSITORY}" \
+            --json assets --jq '.assets[].name' 2>/dev/null || true)
+
+          bumped=""
+          for pkg in $(jq -r '.packages[] | select(.build != false) | .package' packages.json); do
+            tmpl="srcpkgs/${pkg}/template"
+            [ -f "$tmpl" ] || continue
+            # Dry-run install: kalau shlib gak resolvable, xbps cetak
+            # "<pkg>-<ver>_<rev>: broken, unresolvable shlib '...'".
+            out=$(xbps-install -Sn "$pkg" 2>&1 || true)
+            echo "$out" | grep -qi 'unresolvable shlib' || continue
+
+            # Pastikan yang broken emang package KITA (bukan cuma dep).
+            echo "$out" | grep -i 'unresolvable shlib' \
+              | grep -qE "^${pkg}-[0-9]" || {
+                echo "$pkg: ada shlib break tapi bukan di package ini, skip."
+                continue
+              }
+
+            ver=$(grep -m1 '^version=' "$tmpl" | cut -d= -f2 | tr -d '"')
+            rev=$(grep -m1 '^revision=' "$tmpl" | cut -d= -f2 | tr -d '"')
+            # Guard anti double-bump: kalau template ver_rev BELUM kepublish,
+            # berarti rebuild sebelumnya masih pending -- jangan bump lagi.
+            if ! printf '%s\n' "$assets" | grep -qF "${pkg}-${ver}_${rev}."; then
+              echo "$pkg: broken tapi ${ver}_${rev} belum kepublish (rebuild pending), skip."
+              continue
+            fi
+
+            newrev=$((rev + 1))
+            sed -i "s/^revision=.*/revision=${newrev}/" "$tmpl"
+            echo "$pkg: broken shlib -> bump revision ${rev} -> ${newrev}"
+            bumped="$bumped $pkg"
+          done
+
+          bumped=$(echo "$bumped" | xargs || true)
+          echo "bumped=$bumped" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Shlib rebuild"
+            if [ -n "$bumped" ]; then
+              echo "Package broken-shlib, revision di-bump + rebuild:"
+              for p in $bumped; do echo "- \`$p\`"; done
+            else
+              echo "Gak ada package yang broken shlib. Semua sehat."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit and push bumps
+        if: steps.detect.outputs.bumped != ''
+        env:
+          BUMPED: ${{ steps.detect.outputs.bumped }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- srcpkgs/*/template
+          git commit -m "ci: bump revision untuk rebuild broken shlib (${BUMPED})" \
+                     -m "Binary kepublish tapi shlib gak resolvable lagi (mis. void bump Qt). Revision di-bump supaya rebuild lawan void terkini + client narik binary baru. Otomatis dari workflow."
+          for i in 1 2 3 4; do
+            git push origin HEAD:main && break
+            echo "push gagal, retry ($i)..."; sleep $((i * 2))
+            git pull --rebase origin main || true
+          done
+
+      - name: Re-dispatch build for bumped packages
+        if: steps.detect.outputs.bumped != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUMPED: ${{ steps.detect.outputs.bumped }}
+        run: |
+          # Push via GITHUB_TOKEN gak nge-trigger build (anti-rekursi), jadi
+          # dispatch manual. Satu dispatch dengan daftar package.
+          echo "Dispatch rebuild buat: $BUMPED"
+          gh workflow run build.yml \
+            --repo "${GITHUB_REPOSITORY}" \
+            --ref main \
+            -f package="$BUMPED"
+
   notify:
     name: Notify on failure
-    needs: reconcile
-    # Cuma kalau job reconcile GAGAL (mis. GH API error, dispatch ditolak) --
-    # biar rekonsiliasi yang mati gak lolos diam-diam. Package yang missing
-    # tapi ke-dispatch normal TIDAK memicu notif ini (itu jalur sukses).
+    needs: [reconcile, shlib-rebuild]
+    # Cuma kalau job reconcile/shlib-rebuild GAGAL (mis. GH API error, dispatch
+    # ditolak, container error) -- biar yang mati gak lolos diam-diam. Jalur
+    # sukses (dispatch normal) TIDAK memicu notif ini.
     if: ${{ failure() }}
     runs-on: ubuntu-latest
     steps:
