@@ -10,6 +10,11 @@ scaffold template  ->  isi bagian TODO (kalau ada)  ->  commit + push  ->  CI bu
 
 Ada 2 cara bikin template. **Selalu coba cara 1 dulu.**
 
+> **Tanpa terminal (dari HP/browser):** buka tab **Actions -> "Add package"
+> -> Run workflow**, isi form-nya (nama paket, mode, dll), klik Run. Workflow
+> bakal scaffold + commit + push + trigger build otomatis. Sama persis kayak
+> jalanin `new-template.sh` di bawah, tapi lewat UI GitHub.
+
 ---
 
 ## Cara 1 (paling gampang): contek dari void
