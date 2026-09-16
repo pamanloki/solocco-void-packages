@@ -118,6 +118,10 @@ case "$strategy" in
     rm -f "$tmpttf" "$tmpnerd"
 
     set_version "$latest_ver"
+    # Versi baru -> revision balik ke 1 (konvensi Void), konsisten dengan
+    # strategi lain. Cuma kejalan pas versi emang berubah (ada guard "up to
+    # date" di atas), jadi bump revision manual di antara rilis tetap aman.
+    set_revision_1
     python3 - "$template" "$cs1" "$cs2" <<'PYEOF'
 import sys, re
 path, cs1, cs2 = sys.argv[1:]
