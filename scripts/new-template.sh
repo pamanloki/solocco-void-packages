@@ -8,7 +8,12 @@
 # bener. Jadi kamu cukup isi bagian yang beneran package-specific: depends /
 # makedepends (+ do_install kalau perlu).
 #
-# Contoh:
+# CARA PALING GAMPANG -- kalau void udah punya paketnya, contek punya void
+# (udah lengkap depends/build_style/do_install, tinggal pakai):
+#   scripts/new-template.sh --from-void neofetch
+#   scripts/new-template.sh --from-void mpv --build false
+#
+# Kalau void GAK punya, scaffold manual per-strategy:
 #   scripts/new-template.sh --name foo --strategy source-tarball \
 #     --repo owner/foo --version 1.2.3 --build-style gnu-configure \
 #     --desc "Foo does things" --license MIT --homepage https://foo.dev
@@ -27,7 +32,7 @@ set -euo pipefail
 die() { echo "error: $*" >&2; exit 1; }
 
 usage() {
-  sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
+  awk 'NR>1 && /^#/{sub(/^# ?/,""); print; next} NR>1{exit}' "$0"
   exit "${1:-0}"
 }
 
@@ -36,10 +41,12 @@ NAME=""; STRATEGY=""; VERSION=""; REPO=""; DESC=""; HOMEPAGE=""; LICENSE=""
 BUILD="true"; RESTRICTED="false"; BUILD_STYLE=""; ASSET=""; FONT=""; TAG=""
 FALLBACK_TAGS="false"; DASH_STRIP="false"; SET_TAG_VAR="false"
 URL_V_PREFIX="false"; QUOTED_CHECKSUM="true"; MAINTAINER="solocco <noreply@github.com>"
+FROM_VOID=""
 
 [ $# -eq 0 ] && usage 0
 while [ $# -gt 0 ]; do
   case "$1" in
+    --from-void) FROM_VOID="$2"; NAME="$2"; shift 2;;
     --name) NAME="$2"; shift 2;;
     --strategy) STRATEGY="$2"; shift 2;;
     --version) VERSION="$2"; shift 2;;
@@ -71,12 +78,69 @@ cd "$ROOT"
 command -v jq >/dev/null || die "butuh jq"
 
 # --- validasi dasar ---
-[ -n "$NAME" ] || die "--name wajib"
-[ -n "$STRATEGY" ] || die "--strategy wajib (source-tarball|binary-asset|icon-theme|font|static)"
+[ -n "$NAME" ] || die "--name wajib (atau --from-void <nama>)"
 echo "$NAME" | grep -qE '^[A-Za-z0-9._+-]+$' || die "nama package gak valid: $NAME"
 [ -d "srcpkgs/$NAME" ] && die "srcpkgs/$NAME sudah ada"
 jq -e --arg n "$NAME" '.packages[] | select(.package==$n)' packages.json >/dev/null 2>&1 \
   && die "$NAME sudah terdaftar di packages.json"
+
+# ============================================================
+# Mode --from-void: contek template ASLI dari void-packages (lengkap:
+# depends, build_style, do_install). Pas buat paket yang void udah punya.
+# ============================================================
+if [ -n "$FROM_VOID" ]; then
+  command -v curl >/dev/null || die "butuh curl buat --from-void"
+  url="https://raw.githubusercontent.com/void-linux/void-packages/master/srcpkgs/${FROM_VOID}/template"
+  tmpl=$(curl -fsSL "$url" 2>/dev/null) \
+    || die "void gak punya '$FROM_VOID' (atau jaringan bermasalah). Pakai --strategy buat scaffold manual."
+  echo "$tmpl" | grep -q '^pkgname=' || die "hasil fetch bukan template valid."
+
+  mkdir -p "srcpkgs/$NAME"
+  printf '%s\n' "$tmpl" > "srcpkgs/$NAME/template"
+
+  # Tentuin strategy buat auto-updater kita dari distfiles-nya:
+  # - distfiles GitHub archive tag  -> source-tarball (+ repo)
+  # - selain itu                    -> static (gak auto-update; aman)
+  dist=$(printf '%s\n' "$tmpl" | grep -m1 '^distfiles=' || true)
+  vrepo=$(printf '%s\n' "$dist" | grep -oE 'github\.com/[^/]+/[^/]+/archive' \
+          | head -1 | sed -E 's#github\.com/([^/]+/[^/]+)/archive#\1#' || true)
+  if [ -n "$vrepo" ]; then
+    pkg_json=$(jq -n --arg p "$NAME" --arg r "$vrepo" \
+      --argjson restr "$RESTRICTED" --argjson build "$BUILD" \
+      '{package:$p, restricted:$restr, build:$build, strategy:"source-tarball", repo:$r}')
+    strat_note="source-tarball (repo: $vrepo) -- auto-update aktif"
+  else
+    pkg_json=$(jq -n --arg p "$NAME" \
+      --argjson restr "$RESTRICTED" --argjson build "$BUILD" \
+      '{package:$p, restricted:$restr, build:$build, strategy:"static"}')
+    strat_note="static -- gak auto-update (distfiles bukan GitHub archive). Set strategy manual di packages.json kalau mau."
+  fi
+
+  tmp=$(mktemp)
+  jq --argjson entry "$pkg_json" '.packages += [$entry]' packages.json > "$tmp"
+  jq -e . "$tmp" >/dev/null || { rm -f "$tmp"; die "packages.json jadi invalid, batal"; }
+  mv "$tmp" packages.json
+
+  # Cek referensi ke file eksternal yang gak ikut ke-copy.
+  extra=""
+  echo "$tmpl" | grep -qE '\$\{?FILESDIR' && extra="${extra} files/"
+  echo "$tmpl" | grep -qE 'patches/|^_.*patch' && extra="${extra} patches/"
+
+  echo "OK (from-void). Dibuat:"
+  echo "  - srcpkgs/$NAME/template  (salinan template void, udah lengkap)"
+  echo "  - entry packages.json     ($strat_note)"
+  [ -n "$extra" ] && {
+    echo ""
+    echo "PERHATIAN: template void ini nyebut${extra} -- folder itu TIDAK ikut ke-copy."
+    echo "Kalau build gagal cari file di situ, ambil manual dari:"
+    echo "  https://github.com/void-linux/void-packages/tree/master/srcpkgs/$FROM_VOID"
+  }
+  echo ""
+  echo "Langkah berikutnya: review template-nya, lalu commit + push. Checksum udah dari void jadi biasanya langsung lolos."
+  exit 0
+fi
+
+[ -n "$STRATEGY" ] || die "--strategy wajib (source-tarball|binary-asset|icon-theme|font|static), atau pakai --from-void <nama>"
 
 PLACEHOLDER="0000000000000000000000000000000000000000000000000000000000000000"
 : "${DESC:=TODO: short description}"
