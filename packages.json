@@ -284,6 +284,13 @@
       "fallback_tags": true,
       "dash_strip": true,
       "set_tag_var": true
+    },
+    {
+      "package": "firax-font",
+      "restricted": false,
+      "build": true,
+      "strategy": "font",
+      "font": "Firax"
     }
   ]
 }
