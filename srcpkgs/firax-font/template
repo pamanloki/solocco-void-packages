@@ -1,0 +1,19 @@
+pkgname=firax-font
+version=34.8.1
+revision=1
+depends="font-util"
+short_desc="Firax TTF and Nerd Font"
+maintainer="solocco"
+license="OFL-1.1"
+homepage="https://github.com/solocco/my-fonts"
+distfiles="https://github.com/solocco/my-fonts/releases/download/Firax-v${version}/Firax-TTF.tar.xz
+ https://github.com/solocco/my-fonts/releases/download/Firax-v${version}/Firax-NerdFont.tar.xz"
+checksum="eb4ce3ef2e53b55449f525189b067b8804a28d62420e67dab22d3cbf7b8e6c46
+ 40a665c53c0142eba30534e6d901903cc13dfbe072e5fd90d6244c777cf4cec0"
+font_dirs="/usr/share/fonts/TTF"
+provides="font:monospace-0_1"
+
+do_install() {
+	vmkdir usr/share/fonts/TTF
+	vcopy *.ttf usr/share/fonts/TTF
+}
